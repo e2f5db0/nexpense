@@ -50,7 +50,7 @@ passwords, then run:
 cp app/build/outputs/apk/release/app-release.apk nexpense-release.apk
 ```
 
-Upload `nexpense-release.apk` to a GitHub Release tagged `v0.1.0`. In Obtainium choose
+Upload `nexpense-release.apk` to a GitHub Release tagged `vX.Y.Z`. In Obtainium choose
 **Add app**, enter this repository's GitHub URL, and select the release APK. Keep the
 same signing certificate and increment `versionCode`/`versionName` for every update;
 otherwise Android will reject upgrades.
@@ -64,6 +64,24 @@ The tag workflow automates testing and release upload. Configure repository secr
 
 No `nsec` belongs in GitHub, release assets, logs, issues, or CI secrets. Those secrets
 are only for the Android application signing key.
+
+## License
+
+Nexpense is free software: you can redistribute it and/or modify it under the
+terms of the GNU Affero General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version.
+
+Nexpense is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the [GNU AGPL](LICENSE) for more details.
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+Copyright (C) 2026 e2f5db0
+
+Corresponding source for every published APK is this repository at the matching
+`v*` tag; each release attaches the signed APK and GitHub exposes the source
+archive for that tag.
 
 ## Validation limits
 
