@@ -21,13 +21,26 @@ jobs:
           distribution: temurin
           java-version: "17"
       - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.NEXPENSE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.NEXPENSE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.NEXPENSE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.NEXPENSE_KEY_PASSWORD }}
         run: |
-          echo "${{ secrets.NEXPENSE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/nexpense-release.jks"
+          set -euo pipefail
+          : "${KEYSTORE_BASE64:?secret NEXPENSE_KEYSTORE_BASE64 is missing or empty}"
+          : "${STORE_PASSWORD:?secret NEXPENSE_STORE_PASSWORD is missing or empty}"
+          : "${KEY_ALIAS:?secret NEXPENSE_KEY_ALIAS is missing or empty}"
+          : "${KEY_PASSWORD:?secret NEXPENSE_KEY_PASSWORD is missing or empty}"
+          KEYSTORE="$RUNNER_TEMP/nexpense-release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
+          echo "Decoded keystore: $(wc -c < "$KEYSTORE") bytes"
+          keytool -list -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
           {
-            echo "storeFile=$RUNNER_TEMP/nexpense-release.jks"
-            echo "storePassword=${{ secrets.NEXPENSE_STORE_PASSWORD }}"
-            echo "keyAlias=${{ secrets.NEXPENSE_KEY_ALIAS }}"
-            echo "keyPassword=${{ secrets.NEXPENSE_KEY_PASSWORD }}"
+            printf 'storeFile=%s\n' "$KEYSTORE"
+            printf 'storePassword=%s\n' "$STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
           } > keystore.properties
       - name: Test, lint, and build signed APK
         run: ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease
