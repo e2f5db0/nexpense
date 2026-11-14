@@ -1,0 +1,3 @@
+-keep class app.nexpense.data.** { *; }
+-keep class app.nexpense.nostr.** { *; }
+-dontwarn org.bouncycastle.**
