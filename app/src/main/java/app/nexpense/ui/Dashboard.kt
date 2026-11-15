@@ -14,13 +14,14 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.nexpense.MainViewModel
 import app.nexpense.data.GroupEntity
 import app.nexpense.data.GroupState
@@ -38,7 +39,7 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
     var activity by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<Person?>(null) }
     val actor = state.actingPerson
-    val actionsEnabled = !busy && !state.syncing
+    val actionsEnabled = !busy
 
     Scaffold(topBar = {
         TopAppBar(title = { Text(state.displayName, Modifier.clickable { groupSwitcher = true }, fontWeight = FontWeight.Bold) },
@@ -49,17 +50,20 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             TextButton(onClick = { actors = true }, Modifier.fillMaxWidth()) {
-                if (actor == null) Text("Select who you are", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) else {
+                if (actor == null) {
+                    Text("Select who you are", Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                } else {
                     Text(buildAnnotatedString {
                         append("Acting as ")
-                        withStyle(SpanStyle(color = NostrPurple, fontWeight = FontWeight.Bold, fontSize = 20.sp)) {
+                        withStyle(SpanStyle(color = NostrPurple, fontWeight = FontWeight.Bold)) {
                             append(actor.name)
                         }
-                    }, Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    }, Modifier.fillMaxWidth(), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             when {
-                state.syncing -> Text("Syncing… actions paused", style = MaterialTheme.typography.bodySmall)
+                state.syncing -> Text("Syncing…", style = MaterialTheme.typography.bodySmall)
                 state.pendingCount > 0 -> Text("${state.pendingCount} ${if (state.pendingCount == 1) "change" else "changes"} waiting to sync",
                     style = MaterialTheme.typography.bodySmall)
                 state.group.syncStatus == "Offline" -> Text("Offline · changes will sync later",
@@ -89,7 +93,8 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                         val balanceColor = if (balance > 0) MaterialTheme.colorScheme.error else if (balance < 0) Blue
                         else MaterialTheme.colorScheme.onSurfaceVariant
                         Card(Modifier.fillMaxWidth().clickable { detail = person },
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
                             Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column(Modifier.weight(1f)) {
                                     Text(person.name, fontWeight = FontWeight.SemiBold)

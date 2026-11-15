@@ -4,6 +4,7 @@
 package app.nexpense.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
 import app.nexpense.data.GroupState
@@ -42,7 +45,8 @@ fun ActivityDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: 
         text = { LazyColumn(Modifier.heightIn(max = 560.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(state.ledger.entries, key = { it.event.id }) { ledgerEvent ->
                 val entry = ledgerEvent.entry
-                Card(Modifier.fillMaxWidth()) {
+                Card(Modifier.fillMaxWidth(), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
                     Row(Modifier.padding(16.dp)) {
                         Column(Modifier.weight(1f)) {
                             when (entry) {
@@ -75,7 +79,8 @@ fun PersonDetailDialog(state: GroupState, person: Person, viewModel: MainViewMod
         text = { LazyColumn(Modifier.heightIn(max = 560.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (lines.isEmpty()) item { Text("No outstanding debt lines.") }
             items(lines, key = { it.eventId }) { line ->
-                Card(Modifier.fillMaxWidth()) {
+                Card(Modifier.fillMaxWidth(), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
                     Row(Modifier.padding(16.dp)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(line.description, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)

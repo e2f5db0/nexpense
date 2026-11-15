@@ -3,11 +3,14 @@
 
 package app.nexpense.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -25,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
 import app.nexpense.data.GroupState
@@ -39,7 +43,7 @@ fun RequestDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: B
     val actor = state.actingPerson ?: return
     var description by remember { mutableStateOf("") }
     var total by remember { mutableStateOf("") }
-    var selected by remember { mutableStateOf(state.people.map { it.personId }.filter { it != actor.personId }.toSet()) }
+    var selected by remember { mutableStateOf(emptySet<String>()) }
     var custom by remember { mutableStateOf(false) }
     var customAmounts by remember { mutableStateOf(mapOf<String, String>()) }
     var confirm by remember { mutableStateOf(false) }
@@ -59,31 +63,35 @@ fun RequestDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: B
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Back") } })
     } else {
         AlertDialog(onDismissRequest = dismiss, title = { Text("Request · acting as ${actor.name}") },
-            text = { Column(Modifier.heightIn(max = 580.dp).verticalScroll(rememberScrollState())) {
-                if (!actionsEnabled) Text("Wait for the current synchronization to finish.")
-                OutlinedTextField(description, { description = it }, label = { Text("Expense description") },
-                    singleLine = true, enabled = actionsEnabled)
-                if (!custom) OutlinedTextField(total, { total = it }, label = { Text("Total amount in EUR") },
-                    singleLine = true, enabled = actionsEnabled)
+            text = { Column(Modifier.heightIn(max = 580.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth(),
+                    label = { Text("Expense description") }, singleLine = true, enabled = actionsEnabled)
+                if (!custom) OutlinedTextField(total, { total = it }, Modifier.fillMaxWidth(),
+                    label = { Text("Total amount in EUR") }, singleLine = true, enabled = actionsEnabled)
                 Row(Modifier.fillMaxWidth().toggleable(custom, enabled = actionsEnabled, role = Role.Checkbox) { custom = it },
                     verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(custom, null, enabled = actionsEnabled)
-                    Text("Enter a custom amount per person")
+                    Text("Custom amounts", Modifier.weight(1f))
                 }
                 OutlinedButton(onClick = { selected = state.people.map { it.personId }.toSet() },
-                    enabled = actionsEnabled) { Text("Everyone, including me") }
+                    Modifier.fillMaxWidth(), enabled = actionsEnabled,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)) {
+                    Text("Everyone, including me", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 state.people.forEach { person ->
                     Row(Modifier.fillMaxWidth().toggleable(
                         value = person.personId in selected,
                         enabled = actionsEnabled,
                         role = Role.Checkbox,
                         onValueChange = { checked -> selected = if (checked) selected + person.personId else selected - person.personId },
-                    ), verticalAlignment = Alignment.CenterVertically) {
+                    ).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(person.personId in selected, null, enabled = actionsEnabled)
-                        Text(person.name, Modifier.weight(1f))
+                        Text(person.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     if (custom && person.personId in selected) OutlinedTextField(customAmounts[person.personId] ?: "",
-                        { customAmounts = customAmounts + (person.personId to it) }, label = { Text("${person.name}'s share EUR") },
+                        { customAmounts = customAmounts + (person.personId to it) }, Modifier.fillMaxWidth(),
+                        label = { Text("${person.name}'s share EUR") },
                         singleLine = true, enabled = actionsEnabled)
                 }
                 Text(if (actor.personId in selected) "Your own share is recorded but does not become a debt to yourself." else "Only selected people share this expense.")

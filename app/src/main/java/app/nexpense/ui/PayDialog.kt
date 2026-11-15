@@ -3,8 +3,12 @@
 
 package app.nexpense.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
@@ -17,6 +21,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
 import app.nexpense.data.GroupState
 import app.nexpense.ledger.euroToMinor
@@ -42,13 +48,14 @@ fun PayDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boole
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Back") } })
     } else {
         AlertDialog(onDismissRequest = dismiss, title = { Text("Pay · acting as ${actor.name}") },
-            text = { Column {
-                if (!actionsEnabled) Text("Wait for the current synchronization to finish.")
+            text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (creditors.isEmpty()) Text("You have no outstanding debts.")
                 creditors.forEach { person ->
                     OutlinedButton(onClick = { selectedId = person.personId; amount = "" }, Modifier.fillMaxWidth(),
                         enabled = actionsEnabled) {
-                        Text("${if (selectedId == person.personId) "✓ " else ""}${person.name} · ${minorToEuro(state.ledger.balance(actor.personId, person.personId))}")
+                        Text("${if (selectedId == person.personId) "✓ " else ""}${person.name} · ${minorToEuro(state.ledger.balance(actor.personId, person.personId))}",
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 if (selected != null) {
