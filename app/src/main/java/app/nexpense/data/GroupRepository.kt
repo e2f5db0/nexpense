@@ -60,13 +60,17 @@ class GroupRepository(
         dao.group(publicKey)?.let { dao.saveGroup(it.copy(actingMemberId = personId)) }
     }
 
+    suspend fun setGroupHidden(publicKey: String, hidden: Boolean) {
+        dao.group(publicKey)?.let { dao.saveGroup(it.copy(hidden = hidden)) }
+    }
+
     internal suspend fun publish(publicKey: String, kind: Int, identifier: String, payload: Any) {
         val plaintext = encodePayload(payload)
         val signer = signer(publicKey)
         val draft = EventDraft(publicKey, now(), kind,
             listOf(listOf("d", identifier), listOf("t", "nexpense-v1")), signer.encrypt(plaintext))
         store(publicKey, signer.sign(draft), plaintext, true)
-        publishPending(publicKey)
+        SyncWorker.enqueueOutbox(context, publicKey)
     }
 
     internal suspend fun publishDeletion(publicKey: String, eventId: String, actorId: String) {
@@ -77,32 +81,37 @@ class GroupRepository(
             listOf(listOf("e", eventId), listOf("k", "78"), listOf("t", "nexpense-v1")),
             signer.encrypt(plaintext))
         store(publicKey, signer.sign(draft), plaintext, true)
-        publishPending(publicKey)
+        SyncWorker.enqueueOutbox(context, publicKey)
     }
 
     suspend fun synchronize(publicKey: String) {
         val group = dao.group(publicKey) ?: return
-        dao.saveGroup(group.copy(syncStatus = "Syncing…"))
-        val signer = signer(publicKey)
-        val since = group.syncCursor.takeIf { it > 0 }?.let { (it - 86_400).coerceAtLeast(0) }
-        val result = relays.fetch(group.relayUrls.split(',').filter(String::isNotBlank), signer, since)
-        result.events.forEach { ingest(publicKey, it) }
-        publishPending(publicKey)
-        val latest = dao.group(publicKey)!!
-        val status = if (result.connected == 0) "Offline · no relay responded" else
-            "Synced from ${result.connected}/${result.attempted} relays"
-        dao.saveGroup(latest.copy(lastSyncedAt = if (result.connected > 0) System.currentTimeMillis() else latest.lastSyncedAt,
-            syncCursor = maxOf(latest.syncCursor, result.events.maxOfOrNull { it.createdAt } ?: 0), syncStatus = status))
+        dao.saveGroup(group.copy(syncStatus = SYNCING_STATUS))
+        try {
+            val signer = signer(publicKey)
+            val since = group.syncCursor.takeIf { it > 0 }?.let { (it - 86_400).coerceAtLeast(0) }
+            val result = relays.fetch(group.relayUrls.split(',').filter(String::isNotBlank), signer, since)
+            result.events.forEach { ingest(publicKey, it) }
+            flushPending(publicKey)
+            val latest = dao.group(publicKey)!!
+            val status = if (result.connected == 0) "Offline" else "Synced"
+            dao.saveGroup(latest.copy(lastSyncedAt = if (result.connected > 0) System.currentTimeMillis() else latest.lastSyncedAt,
+                syncCursor = maxOf(latest.syncCursor, result.events.maxOfOrNull { it.createdAt } ?: 0), syncStatus = status))
+        } catch (t: Throwable) {
+            dao.group(publicKey)?.let { dao.saveGroup(it.copy(syncStatus = "Sync failed")) }
+            throw t
+        }
     }
 
-    private suspend fun publishPending(publicKey: String) {
-        val group = dao.group(publicKey) ?: return
+    suspend fun flushPending(publicKey: String): Boolean {
+        val group = dao.group(publicKey) ?: return true
         val signer = signer(publicKey)
         dao.pendingEvents(publicKey).forEach {
             if (relays.publish(group.relayUrls.split(',').filter(String::isNotBlank), signer, it.event())) {
                 dao.markPublished(publicKey, it.id)
             }
         }
+        return dao.pendingEvents(publicKey).isEmpty()
     }
 
     private suspend fun ingest(publicKey: String, event: NostrEvent) {
@@ -134,4 +143,8 @@ class GroupRepository(
     }
 
     private fun now() = System.currentTimeMillis() / 1000
+
+    companion object {
+        const val SYNCING_STATUS = "Syncing…"
+    }
 }

@@ -21,6 +21,7 @@ data class GroupState(
 ) {
     val displayName: String get() = settings.name.ifBlank { group.localName }
     val actingPerson: Person? get() = people.firstOrNull { it.personId == group.actingMemberId }
+    val syncing: Boolean get() = group.syncStatus == GroupRepository.SYNCING_STATUS
 }
 
 object GroupProjector {

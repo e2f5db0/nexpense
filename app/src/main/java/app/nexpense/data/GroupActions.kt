@@ -10,9 +10,12 @@ import app.nexpense.nostr.Person
 import app.nexpense.nostr.Settlement
 import java.util.UUID
 
-suspend fun GroupRepository.initialize(publicKey: String, groupName: String, firstMemberName: String): String {
+suspend fun GroupRepository.initialize(publicKey: String, groupName: String, memberNames: List<String>): List<String> {
+    val names = memberNames.map { it.trim() }
+    require(names.isNotEmpty() && names.all { it.isNotBlank() }) { "Enter a name for every group member" }
+    require(names.map { it.lowercase() }.distinct().size == names.size) { "Group member names must be different" }
     saveSettings(publicKey, groupName)
-    return addPerson(publicKey, firstMemberName)
+    return names.map { addPerson(publicKey, it) }
 }
 
 suspend fun GroupRepository.saveSettings(publicKey: String, name: String) {

@@ -47,20 +47,61 @@ class LedgerTest {
         val afterPartial = LedgerReducer.reduce(listOf(expenseEvent, event("2", 2, partial)))
         assertEquals(1800, afterPartial.balance("bob", "alice"))
         assertEquals(1800, afterPartial.lines.single().remainingMinor)
-        assertEquals(0, LedgerReducer.reduce(listOf(expenseEvent, event("2", 2, partial), event("3", 3, full)))
-            .balance("bob", "alice"))
+        val fullyPaid = LedgerReducer.reduce(listOf(expenseEvent, event("2", 2, partial), event("3", 3, full)))
+        assertEquals(0, fullyPaid.balance("bob", "alice"))
+        assertEquals(emptyList<DebtLine>(), fullyPaid.lines)
     }
 
     @Test
-    fun oppositeDebtsNetAndOverpaymentReverses() {
+    fun oppositeDebtsRemainDirectedWhileBalancesNet() {
         val first = event("1", 1, expense("one", "alice", listOf(Share("bob", 1000))))
         val second = event("2", 2, expense("two", "bob", listOf(Share("alice", 400))))
         val payment = Settlement(entryId = "pay", fromPersonId = "bob", toPersonId = "alice",
             amountMinor = 800, settledAt = 3)
         val snapshot = LedgerReducer.reduce(listOf(first, second, event("3", 3, payment)))
         assertEquals(-200, snapshot.balance("bob", "alice"))
+        val lines = snapshot.lines.associateBy { it.debtorId to it.creditorId }
+        assertEquals(200L, lines["bob" to "alice"]?.remainingMinor)
+        assertEquals(400L, lines["alice" to "bob"]?.remainingMinor)
+    }
+
+    @Test
+    fun oppositeOutstandingEntriesRemainVisibleWithoutANetBalanceChange() {
+        val first = event("1", 1, expense("one", "alice", listOf(Share("bob", 1000))))
+        val second = event("2", 2, expense("two", "bob", listOf(Share("alice", 400))))
+        val snapshot = LedgerReducer.reduce(listOf(first, second))
+
+        assertEquals(600, snapshot.balance("bob", "alice"))
+        val lines = snapshot.lines.associateBy { it.debtorId to it.creditorId }
+        assertEquals(1000L, lines["bob" to "alice"]?.originalMinor)
+        assertEquals(400L, lines["alice" to "bob"]?.originalMinor)
+    }
+
+    @Test
+    fun onlyExplicitSettlementsConsumeTheirDirectedLines() {
+        val first = event("1", 1, expense("one", "alice", listOf(Share("bob", 1000))))
+        val second = event("2", 2, expense("two", "bob", listOf(Share("alice", 400))))
+        val paid = Settlement(entryId = "pay", fromPersonId = "bob", toPersonId = "alice",
+            amountMinor = 1000, settledAt = 3)
+        val snapshot = LedgerReducer.reduce(listOf(first, second, event("3", 3, paid)))
+
+        assertEquals(-400, snapshot.balance("bob", "alice"))
         assertEquals("alice", snapshot.lines.single().debtorId)
-        assertEquals(200, snapshot.lines.single().remainingMinor)
+        assertEquals("bob", snapshot.lines.single().creditorId)
+        assertEquals(400, snapshot.lines.single().remainingMinor)
+    }
+
+    @Test
+    fun cashOverpaymentCreatesAReverseOutstandingLine() {
+        val expenseEvent = event("1", 1, expense(shares = listOf(Share("bob", 1000))))
+        val payment = Settlement(entryId = "pay", fromPersonId = "bob", toPersonId = "alice",
+            amountMinor = 1500, settledAt = 2)
+        val snapshot = LedgerReducer.reduce(listOf(expenseEvent, event("2", 2, payment)))
+
+        assertEquals(-500, snapshot.balance("bob", "alice"))
+        assertEquals("alice", snapshot.lines.single().debtorId)
+        assertEquals("bob", snapshot.lines.single().creditorId)
+        assertEquals(500, snapshot.lines.single().remainingMinor)
     }
 
     @Test
@@ -69,6 +110,7 @@ class LedgerTest {
         val two = event("2", 2, expense("two", "alice", listOf(Share("carol", 500))))
         val expected = LedgerReducer.reduce(listOf(one, two))
         assertEquals(expected.positions, LedgerReducer.reduce(listOf(two, one, one)).positions)
+        assertEquals(expected.lines, LedgerReducer.reduce(listOf(two, one, one)).lines)
         assertEquals(0, LedgerReducer.reduce(listOf(one, two), setOf(one.event.id)).balance("bob", "alice"))
         assertEquals(500, LedgerReducer.reduce(listOf(one, two), setOf(one.event.id)).balance("carol", "alice"))
     }

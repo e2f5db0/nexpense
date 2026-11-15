@@ -7,22 +7,45 @@ import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import app.nexpense.NexpenseApplication
 import java.util.concurrent.TimeUnit
 
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val app = applicationContext as NexpenseApplication
+        val outboxGroup = inputData.getString(KEY_GROUP_PUBLIC_KEY)
+        if (outboxGroup != null) {
+            return try {
+                if (app.repository.flushPending(outboxGroup)) Result.success() else Result.retry()
+            } catch (_: Throwable) {
+                Result.retry()
+            }
+        }
         val groups = app.database.dao().groups()
         groups.forEach { runCatching { app.repository.synchronize(it.publicKey) } }
         return Result.success()
     }
 
     companion object {
+        private const val KEY_GROUP_PUBLIC_KEY = "group_public_key"
+
+        fun enqueueOutbox(context: Context, publicKey: String) {
+            val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+            val request = OneTimeWorkRequestBuilder<SyncWorker>()
+                .setConstraints(constraints)
+                .setInputData(workDataOf(KEY_GROUP_PUBLIC_KEY to publicKey))
+                .build()
+            WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
+                "nexpense-outbox-$publicKey", ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+        }
+
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build()

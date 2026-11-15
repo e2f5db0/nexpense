@@ -53,30 +53,16 @@ object LedgerReducer {
         val positions = mutableMapOf<Pair<String, String>, Long>()
         val pairLines = mutableMapOf<Pair<String, String>, MutableList<DebtLine>>()
 
-        fun linesFor(debtor: String, creditor: String): MutableList<DebtLine> {
-            val key = if (debtor < creditor) debtor to creditor else creditor to debtor
-            return pairLines.getOrPut(key) { mutableListOf() }
-        }
+        fun linesFor(debtor: String, creditor: String): MutableList<DebtLine> =
+            pairLines.getOrPut(debtor to creditor) { mutableListOf() }
 
         fun position(debtor: String, creditor: String, amount: Long) {
             val key = debtor to creditor
             positions[key] = (positions[key] ?: 0) + amount
         }
 
-        fun addObligation(debtor: String, creditor: String, amount: Long, line: DebtLine) {
-            var remaining = amount
-            val iterator = linesFor(debtor, creditor).listIterator()
-            while (remaining > 0 && iterator.hasNext()) {
-                val existing = iterator.next()
-                if (existing.debtorId == creditor && existing.creditorId == debtor) {
-                    val consumed = minOf(remaining, existing.remainingMinor)
-                    val updated = existing.copy(remainingMinor = existing.remainingMinor - consumed)
-                    iterator.set(updated)
-                    remaining -= consumed
-                    if (updated.remainingMinor == 0L) iterator.remove()
-                }
-            }
-            if (remaining > 0) linesFor(debtor, creditor) += line.copy(remainingMinor = remaining)
+        fun addObligation(debtor: String, creditor: String, line: DebtLine) {
+            linesFor(debtor, creditor) += line
         }
 
         fun settle(from: String, to: String, amount: Long, event: LedgerEvent, settlement: Settlement) {
@@ -93,7 +79,7 @@ object LedgerReducer {
                 }
             }
             if (remaining > 0) {
-                linesFor(from, to) += DebtLine(event.event.id, settlement.entryId, to, from, "Overpayment · ${settlement.note}",
+                linesFor(to, from) += DebtLine(event.event.id, settlement.entryId, to, from, "Overpayment · ${settlement.note}",
                     remaining, remaining, event.event.createdAt, true)
             }
         }
@@ -102,7 +88,7 @@ object LedgerReducer {
             when (val entry = ledgerEvent.entry) {
                 is Expense -> entry.shares.filter { it.personId != entry.payerId }.forEach { share ->
                     position(share.personId, entry.payerId, share.amountMinor)
-                    addObligation(share.personId, entry.payerId, share.amountMinor, DebtLine(
+                    addObligation(share.personId, entry.payerId, DebtLine(
                         ledgerEvent.event.id, entry.entryId, share.personId, entry.payerId,
                         entry.description, share.amountMinor, share.amountMinor, ledgerEvent.event.createdAt))
                 }

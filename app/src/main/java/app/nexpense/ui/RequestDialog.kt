@@ -5,6 +5,8 @@ package app.nexpense.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
 import app.nexpense.data.GroupState
@@ -32,7 +35,7 @@ import app.nexpense.nostr.Share
 import java.util.UUID
 
 @Composable
-fun RequestDialog(state: GroupState, viewModel: MainViewModel, dismiss: () -> Unit) {
+fun RequestDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boolean, dismiss: () -> Unit) {
     val actor = state.actingPerson ?: return
     var description by remember { mutableStateOf("") }
     var total by remember { mutableStateOf("") }
@@ -52,31 +55,40 @@ fun RequestDialog(state: GroupState, viewModel: MainViewModel, dismiss: () -> Un
                     description = description.trim(), totalMinor = totalMinor, incurredAt = System.currentTimeMillis() / 1000, shares = shares))
                 else viewModel.request(description, totalMinor, selected)
                 dismiss()
-            }) { Text("Confirm request") } },
+            }, enabled = actionsEnabled) { Text("Confirm request") } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Back") } })
     } else {
         AlertDialog(onDismissRequest = dismiss, title = { Text("Request · acting as ${actor.name}") },
             text = { Column(Modifier.heightIn(max = 580.dp).verticalScroll(rememberScrollState())) {
-                OutlinedTextField(description, { description = it }, label = { Text("Expense description") }, singleLine = true)
-                if (!custom) OutlinedTextField(total, { total = it }, label = { Text("Total amount in EUR") }, singleLine = true)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(custom, { custom = it })
+                if (!actionsEnabled) Text("Wait for the current synchronization to finish.")
+                OutlinedTextField(description, { description = it }, label = { Text("Expense description") },
+                    singleLine = true, enabled = actionsEnabled)
+                if (!custom) OutlinedTextField(total, { total = it }, label = { Text("Total amount in EUR") },
+                    singleLine = true, enabled = actionsEnabled)
+                Row(Modifier.fillMaxWidth().toggleable(custom, enabled = actionsEnabled, role = Role.Checkbox) { custom = it },
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(custom, null, enabled = actionsEnabled)
                     Text("Enter a custom amount per person")
                 }
-                OutlinedButton(onClick = { selected = state.people.map { it.personId }.toSet() }) { Text("Everyone, including me") }
+                OutlinedButton(onClick = { selected = state.people.map { it.personId }.toSet() },
+                    enabled = actionsEnabled) { Text("Everyone, including me") }
                 state.people.forEach { person ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(person.personId in selected, { checked ->
-                            selected = if (checked) selected + person.personId else selected - person.personId
-                        })
+                    Row(Modifier.fillMaxWidth().toggleable(
+                        value = person.personId in selected,
+                        enabled = actionsEnabled,
+                        role = Role.Checkbox,
+                        onValueChange = { checked -> selected = if (checked) selected + person.personId else selected - person.personId },
+                    ), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(person.personId in selected, null, enabled = actionsEnabled)
                         Text(person.name, Modifier.weight(1f))
                     }
                     if (custom && person.personId in selected) OutlinedTextField(customAmounts[person.personId] ?: "",
-                        { customAmounts = customAmounts + (person.personId to it) }, label = { Text("${person.name}'s share EUR") }, singleLine = true)
+                        { customAmounts = customAmounts + (person.personId to it) }, label = { Text("${person.name}'s share EUR") },
+                        singleLine = true, enabled = actionsEnabled)
                 }
                 Text(if (actor.personId in selected) "Your own share is recorded but does not become a debt to yourself." else "Only selected people share this expense.")
             } },
-            confirmButton = { Button(onClick = { confirm = true }, enabled = valid) { Text("Review") } },
+            confirmButton = { Button(onClick = { confirm = true }, enabled = valid && actionsEnabled) { Text("Review") } },
             dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
     }
 }

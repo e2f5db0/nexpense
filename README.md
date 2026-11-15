@@ -8,13 +8,13 @@ identifies and encrypts each independent group.
 
 - Generate a group key on Android, import an `nsec`, or connect an existing Amber key.
 - Amber NIP-55 signing and NIP-44 operations without exposing its private key.
-- Switch acting members without logging out; add members and name multiple groups.
+- Switch acting members without logging out; add all members at creation and name, hide, or restore groups.
 - Equal or custom requests from any subset, including an optional requester share.
-- Partial/full cash settlements and line-by-line outstanding debts per person.
+- Partial/full cash settlements and directed line-by-line outstanding debts per person.
 - NIP-01 signatures, NIP-44 v2 encryption, NIP-42 relay AUTH, and NIP-09 deletion.
-- Room cache, pending outbox, overlapping catch-up, and periodic background sync.
+- Room cache, immediate local writes, background outbox delivery, overlapping catch-up, and periodic sync.
 - Deterministic integer-cent balances with duplicate/out-of-order event handling.
-- Dark blue and Nostr-purple Material 3 interface.
+- Pixel-art, monospace, and Nostr-purple Material 3 interface.
 
 **Trust and consistency:** every key holder can read, write, impersonate, and delete as
 any member. Event contents are private, but Nostr metadata is not. Devices can show

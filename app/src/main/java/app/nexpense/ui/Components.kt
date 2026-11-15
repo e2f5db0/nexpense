@@ -3,9 +3,11 @@
 
 package app.nexpense.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -13,14 +15,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.nexpense.ledger.minorToEuro
 
 @Composable
 fun AmountCard(label: String, amount: Long, modifier: Modifier, color: Color) {
-    Card(modifier) {
-        Column(Modifier.padding(16.dp)) {
+    Card(modifier, border = BorderStroke(1.dp, NostrPurple),
+        colors = CardDefaults.cardColors(containerColor = Surface)) {
+        Column(Modifier.padding(18.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge)
-            Text(minorToEuro(amount), style = MaterialTheme.typography.headlineSmall, color = color, fontWeight = FontWeight.Bold)
+            Text(minorToEuro(amount), style = MaterialTheme.typography.headlineSmall, color = color,
+                fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
         }
     }
 }

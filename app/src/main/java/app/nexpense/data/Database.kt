@@ -13,6 +13,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "groups")
@@ -26,6 +28,7 @@ data class GroupEntity(
     val lastSyncedAt: Long = 0,
     val syncCursor: Long = 0,
     val syncStatus: String = "Never synchronized",
+    val hidden: Boolean = false,
 )
 
 @Entity(tableName = "events", primaryKeys = ["groupPublicKey", "id"])
@@ -81,13 +84,19 @@ interface NexpenseDao {
     suspend fun deleteEvents(publicKey: String)
 }
 
-@Database(entities = [GroupEntity::class, CachedEventEntity::class], version = 1, exportSchema = true)
+@Database(entities = [GroupEntity::class, CachedEventEntity::class], version = 2, exportSchema = true)
 abstract class NexpenseDatabase : RoomDatabase() {
     abstract fun dao(): NexpenseDao
 
     companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE groups ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun create(context: Context): NexpenseDatabase = Room.databaseBuilder(
             context.applicationContext, NexpenseDatabase::class.java, "nexpense.db",
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(MIGRATION_1_2).fallbackToDestructiveMigration().build()
     }
 }

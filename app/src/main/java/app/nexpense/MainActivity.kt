@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import app.nexpense.signer.AmberConnector
 import app.nexpense.ui.DashboardScreen
+import app.nexpense.ui.GroupSwitcherDialog
 import app.nexpense.ui.NexpenseTheme
 import app.nexpense.ui.OnboardingScreen
 
@@ -52,6 +53,9 @@ fun NexpenseApp(viewModel: MainViewModel) {
     val error by viewModel.error.collectAsState()
     val backup by viewModel.generatedBackup.collectAsState()
     var addingGroup by rememberSaveable { mutableStateOf(false) }
+    var showGroups by rememberSaveable { mutableStateOf(false) }
+    val visibleGroups = groups.filterNot { it.hidden }
+    val activeGroup = group?.takeUnless { it.group.hidden }
     val clipboard = LocalClipboardManager.current
     val amberLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK && result.data?.getBooleanExtra("rejected", false) != true) {
@@ -64,24 +68,32 @@ fun NexpenseApp(viewModel: MainViewModel) {
         }
     }
 
-    LaunchedEffect(groups) {
-        if (group == null && groups.isNotEmpty() && !addingGroup) viewModel.selectGroup(groups.first().publicKey)
+    LaunchedEffect(groups, addingGroup) {
+        val current = group
+        if ((current == null || current.group.hidden) && visibleGroups.isNotEmpty() && !addingGroup) {
+            viewModel.selectGroup(visibleGroups.first().publicKey)
+        } else if (current?.group?.hidden == true && visibleGroups.isEmpty()) {
+            viewModel.clearGroupSelection()
+        }
     }
 
-    if (group == null || addingGroup) {
+    if (activeGroup == null || addingGroup) {
         OnboardingScreen(
             busy = busy,
-            showCancel = groups.isNotEmpty(),
+            showCancel = visibleGroups.isNotEmpty(),
             onCancel = { addingGroup = false },
-            onGenerate = { name, member -> viewModel.generateGroup(name, member); addingGroup = false },
+            onGenerate = { name, members -> viewModel.generateGroup(name, members); addingGroup = false },
             onImport = { nsec, name -> viewModel.importGroup(nsec, name); addingGroup = false },
             onAmber = { amberLauncher.launch(AmberConnector.connectionIntent()) },
+            onShowGroups = if (groups.any { it.hidden } && !addingGroup) ({ showGroups = true }) else null,
         )
     } else {
-        DashboardScreen(viewModel = viewModel, state = group!!, groups = groups, onAddGroup = { addingGroup = true })
+        DashboardScreen(viewModel = viewModel, state = activeGroup, groups = groups, busy = busy,
+            onAddGroup = { addingGroup = true })
     }
 
-    if (busy && group != null) CircularProgressIndicator()
+    if (showGroups) GroupSwitcherDialog(groups, viewModel, { addingGroup = true }) { showGroups = false }
+    if (busy && activeGroup != null) CircularProgressIndicator()
     error?.let {
         AlertDialog(onDismissRequest = viewModel::dismissError, title = { Text("Something went wrong") },
             text = { Text(it) }, confirmButton = { TextButton(onClick = viewModel::dismissError) { Text("OK") } })

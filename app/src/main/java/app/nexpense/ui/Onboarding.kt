@@ -9,10 +9,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -21,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -35,25 +42,28 @@ fun OnboardingScreen(
     busy: Boolean,
     showCancel: Boolean,
     onCancel: () -> Unit,
-    onGenerate: (String, String) -> Unit,
+    onGenerate: (String, List<String>) -> Unit,
     onImport: (String, String) -> Unit,
     onAmber: () -> Unit,
+    onShowGroups: (() -> Unit)? = null,
 ) {
-    var tab by rememberSaveable { mutableStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
     var groupName by rememberSaveable { mutableStateOf("") }
     var memberName by rememberSaveable { mutableStateOf("") }
+    var additionalMembers by rememberSaveable { mutableStateOf(listOf<String>()) }
     var nsec by androidx.compose.runtime.remember { mutableStateOf("") }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)) {
         if (showCancel) TextButton(onClick = onCancel) { Text("Cancel") }
+        if (onShowGroups != null) TextButton(onClick = onShowGroups) { Text("Show hidden groups") }
         Text("Nexpense", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = NostrPurple)
         Text("Private shared expenses for trusted groups.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("The nsec is the group. Keep it secret: everyone who has it can read and edit every expense.",
             style = MaterialTheme.typography.bodyMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("New group", "Enter nsec", "Amber").forEachIndexed { index, label ->
-                OutlinedButton(onClick = { tab = index }, colors = if (tab == index) ButtonDefaults.outlinedButtonColors(
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("New group", "Enter group key", "Amber").forEachIndexed { index, label ->
+                OutlinedButton(onClick = { tab = index }, enabled = !busy, colors = if (tab == index) ButtonDefaults.outlinedButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant) else ButtonDefaults.outlinedButtonColors()) {
                     Text(label)
                 }
@@ -61,18 +71,36 @@ fun OnboardingScreen(
         }
         when (tab) {
             0 -> {
-                OutlinedTextField(groupName, { groupName = it }, Modifier.fillMaxWidth(), label = { Text("Group name") }, singleLine = true)
-                OutlinedTextField(memberName, { memberName = it }, Modifier.fillMaxWidth(), label = { Text("Your name in the group") }, singleLine = true)
-                Button(onClick = { if (groupName.isNotBlank() && memberName.isNotBlank()) onGenerate(groupName, memberName) },
-                    Modifier.fillMaxWidth(), enabled = !busy) { Text("Generate group key") }
+                OutlinedTextField(groupName, { groupName = it }, Modifier.fillMaxWidth(), label = { Text("Group name") },
+                    singleLine = true, enabled = !busy)
+                OutlinedTextField(memberName, { memberName = it }, Modifier.fillMaxWidth(), label = { Text("Your name in the group") },
+                    singleLine = true, enabled = !busy)
+                additionalMembers.forEachIndexed { index, name ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(name, { value ->
+                            additionalMembers = additionalMembers.mapIndexed { i, old -> if (i == index) value else old }
+                        }, Modifier.weight(1f), label = { Text("Friend ${index + 1}'s name") }, singleLine = true, enabled = !busy)
+                        IconButton(onClick = { additionalMembers = additionalMembers.filterIndexed { i, _ -> i != index } },
+                            enabled = !busy) { Icon(Icons.Default.Close, "Remove friend ${index + 1}") }
+                    }
+                }
+                OutlinedButton(onClick = { additionalMembers = additionalMembers + "" }, enabled = !busy) {
+                    Icon(Icons.Default.Add, null)
+                    Text("Add another member")
+                }
+                val members = listOf(memberName) + additionalMembers
+                val validMembers = members.all { it.isNotBlank() } &&
+                    members.map { it.trim().lowercase() }.distinct().size == members.size
+                Button(onClick = { onGenerate(groupName, members.map(String::trim)) }, Modifier.fillMaxWidth(),
+                    enabled = !busy && groupName.isNotBlank() && validMembers) { Text("Generate group key") }
                 Text("Back up the generated nsec before sharing expenses. You can share it privately with trusted friends later.",
                     style = MaterialTheme.typography.bodySmall)
             }
             1 -> {
                 OutlinedTextField(nsec, { nsec = it.trim() }, Modifier.fillMaxWidth(), label = { Text("nsec1…") },
-                    visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                    visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !busy)
                 OutlinedTextField(groupName, { groupName = it }, Modifier.fillMaxWidth(),
-                    label = { Text("Local group name (optional)") }, singleLine = true)
+                    label = { Text("Local group name (optional)") }, singleLine = true, enabled = !busy)
                 Button(onClick = { if (nsec.isNotBlank()) onImport(nsec, groupName) }, Modifier.fillMaxWidth(),
                     enabled = !busy) { Text("Open encrypted group") }
             }

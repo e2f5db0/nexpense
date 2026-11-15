@@ -92,16 +92,17 @@ position `debtor -> payer`. For each settlement from A to B, subtract its amount
 negative means B owes A. Duplicate IDs apply once; deletion removes target deltas.
 Overpayments become reverse positions rather than disappearing.
 
-For line details, obligations are reconciled per pair in `(created_at, event id)` order.
-Opposite debts and settlements consume oldest open lines first. Line allocation is
-derived UI state; signed pairwise balances are authoritative.
+For line details, obligations are reconciled per directed pair in `(created_at, event id)` order.
+Opposite expenses remain visible as independent outstanding lines. Explicit settlements consume
+oldest open lines in their payment direction; overpayments create reverse lines. Line allocation is
+derived UI state; signed pairwise balances remain authoritative and net both directions.
 
 ## Synchronization and application
 
 Nexpense uses Nostr-native eventual consistency. Temporary differences are unavoidable
 with offline phones or incomplete relays. Given the same valid events and tombstones,
-all devices converge to identical balances. The UI exposes offline, syncing, pending,
-and last-synced states.
+all devices converge to identical balances. The UI exposes offline, syncing, and user-friendly pending-change states. Writes update Room immediately
+and schedule a network-constrained outbox worker; publishing does not require a foreground catch-up fetch.
 
 Room stores signed ciphertext events, decrypted entries, tombstones, relay cursors,
 and an outbox. Live subscriptions and overlapping catch-up requests filter by author,
