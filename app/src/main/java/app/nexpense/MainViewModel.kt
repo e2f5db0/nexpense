@@ -8,7 +8,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.nexpense.crypto.GeneratedGroupKey
-import app.nexpense.data.GroupEntity
 import app.nexpense.data.GroupRepository
 import app.nexpense.data.GroupState
 import app.nexpense.data.addPerson
@@ -48,13 +47,12 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     fun selectGroup(publicKey: String) {
         selectedKey.value = publicKey
         preferences.edit().putString("group", publicKey).apply()
-        if (syncingKeys.add(publicKey)) {
-            viewModelScope.launch {
-                try { repository.synchronize(publicKey) }
-                catch (t: Throwable) { error.value = t.message ?: "Synchronization failed" }
-                finally { syncingKeys.remove(publicKey) }
-            }
-        }
+        startSync(publicKey)
+    }
+
+    fun sync() {
+        val key = selectedKey.value ?: return
+        startSync(key)
     }
 
     fun clearGroupSelection() {
@@ -62,7 +60,7 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
         preferences.edit().remove("group").apply()
     }
 
-    fun generateGroup(name: String, members: List<String>) = launch(false) {
+    fun generateGroup(name: String, members: List<String>) = launch {
         val generated = GeneratedGroupKey.create()
         val key = repository.addDeviceGroup(generated.nsec, name)
         val actorId = repository.initialize(key, name, members).first()
@@ -71,25 +69,28 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
         selectGroup(key)
     }
 
-    fun importGroup(nsec: String, name: String) = launch(false) {
+    fun importGroup(nsec: String, name: String) = launch {
         selectGroup(repository.addDeviceGroup(nsec, name))
     }
 
-    fun addAmber(publicKey: String, signerPackage: String, name: String) = launch(false) {
+    fun addAmber(publicKey: String, signerPackage: String, name: String) = launch {
         selectGroup(repository.addAmberGroup(publicKey, signerPackage, name))
     }
 
     fun selectActor(personId: String) = launchLocal { repository.selectActor(currentKey(), personId) }
-    fun setGroupHidden(publicKey: String, hidden: Boolean) = launchLocal {
-        repository.setGroupHidden(publicKey, hidden)
-        if (hidden && selectedKey.value == publicKey) {
-            val next = groups.value.firstOrNull { !it.hidden && it.publicKey != publicKey }
-            if (next == null) clearGroupSelection() else selectGroup(next.publicKey)
+    fun removeGroup(publicKey: String) = launchLocal {
+        if (publicKey in syncingKeys) {
+            error.value = "Wait for the current synchronization to finish"
+        } else {
+            repository.removeGroup(publicKey)
+            if (selectedKey.value == publicKey) {
+                val next = repository.groups().firstOrNull { it.publicKey != publicKey }
+                if (next == null) clearGroupSelection() else selectGroup(next.publicKey)
+            }
         }
     }
     fun addPerson(name: String) = launch { repository.addPerson(currentKey(), name) }
     fun renameGroup(name: String) = launch { repository.saveSettings(currentKey(), name) }
-    fun sync() = launch { repository.synchronize(currentKey()) }
 
     fun request(description: String, totalMinor: Long, participants: Collection<String>) = launch {
         val actor = requireActor()
@@ -102,12 +103,22 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     fun dismissError() { error.value = null }
     fun dismissBackup() { generatedBackup.value = null }
 
+    private fun startSync(publicKey: String) {
+        if (syncingKeys.add(publicKey)) {
+            viewModelScope.launch {
+                try { repository.synchronize(publicKey) }
+                catch (t: Throwable) { error.value = t.message ?: "Synchronization failed" }
+                finally { syncingKeys.remove(publicKey) }
+            }
+        }
+    }
+
     private fun currentKey() = selectedKey.value ?: error("Select a group first")
     private fun requireActor() = group.value?.group?.actingMemberId ?: error("Select who you are acting as")
 
-    private fun launch(blockDuringSync: Boolean = true, operation: suspend () -> Unit) {
-        if (busy.value || (blockDuringSync && group.value?.syncing == true)) {
-            error.value = "Wait for the current synchronization to finish"
+    private fun launch(operation: suspend () -> Unit) {
+        if (busy.value) {
+            error.value = "Wait for the current operation to finish"
             return
         }
         viewModelScope.launch {

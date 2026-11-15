@@ -8,7 +8,7 @@ identifies and encrypts each independent group.
 
 - Generate a group key on Android, import an `nsec`, or connect an existing Amber key.
 - Amber NIP-55 signing and NIP-44 operations without exposing its private key.
-- Switch acting members without logging out; add all members at creation and name, hide, or restore groups.
+- Switch acting members without logging out; add all members at creation and name or remove groups.
 - Equal or custom requests from any subset, including an optional requester share.
 - Partial/full cash settlements and directed line-by-line outstanding debts per person.
 - NIP-01 signatures, NIP-44 v2 encryption, NIP-42 relay AUTH, and NIP-09 deletion.

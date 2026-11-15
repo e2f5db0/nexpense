@@ -45,7 +45,6 @@ fun OnboardingScreen(
     onGenerate: (String, List<String>) -> Unit,
     onImport: (String, String) -> Unit,
     onAmber: () -> Unit,
-    onShowGroups: (() -> Unit)? = null,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var groupName by rememberSaveable { mutableStateOf("") }
@@ -56,7 +55,6 @@ fun OnboardingScreen(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)) {
         if (showCancel) TextButton(onClick = onCancel) { Text("Cancel") }
-        if (onShowGroups != null) TextButton(onClick = onShowGroups) { Text("Show hidden groups") }
         Text("Nexpense", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = NostrPurple)
         Text("Private shared expenses for trusted groups.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("The nsec is the group. Keep it secret: everyone who has it can read and edit every expense.",

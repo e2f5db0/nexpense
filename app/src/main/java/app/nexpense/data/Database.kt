@@ -28,7 +28,6 @@ data class GroupEntity(
     val lastSyncedAt: Long = 0,
     val syncCursor: Long = 0,
     val syncStatus: String = "Never synchronized",
-    val hidden: Boolean = false,
 )
 
 @Entity(tableName = "events", primaryKeys = ["groupPublicKey", "id"])
@@ -84,7 +83,7 @@ interface NexpenseDao {
     suspend fun deleteEvents(publicKey: String)
 }
 
-@Database(entities = [GroupEntity::class, CachedEventEntity::class], version = 2, exportSchema = true)
+@Database(entities = [GroupEntity::class, CachedEventEntity::class], version = 3, exportSchema = true)
 abstract class NexpenseDatabase : RoomDatabase() {
     abstract fun dao(): NexpenseDao
 
@@ -95,8 +94,36 @@ abstract class NexpenseDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS groups_without_hidden (
+                        publicKey TEXT NOT NULL,
+                        localName TEXT NOT NULL,
+                        keySource TEXT NOT NULL,
+                        signerPackage TEXT,
+                        actingMemberId TEXT,
+                        relayUrls TEXT NOT NULL,
+                        lastSyncedAt INTEGER NOT NULL,
+                        syncCursor INTEGER NOT NULL,
+                        syncStatus TEXT NOT NULL,
+                        PRIMARY KEY(publicKey)
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO groups_without_hidden (publicKey, localName, keySource, signerPackage, actingMemberId,
+                        relayUrls, lastSyncedAt, syncCursor, syncStatus)
+                    SELECT publicKey, localName, keySource, signerPackage, actingMemberId,
+                        relayUrls, lastSyncedAt, syncCursor, syncStatus
+                    FROM groups
+                """.trimIndent())
+                database.execSQL("DROP TABLE groups")
+                database.execSQL("ALTER TABLE groups_without_hidden RENAME TO groups")
+            }
+        }
+
         fun create(context: Context): NexpenseDatabase = Room.databaseBuilder(
             context.applicationContext, NexpenseDatabase::class.java, "nexpense.db",
-        ).addMigrations(MIGRATION_1_2).fallbackToDestructiveMigration().build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).fallbackToDestructiveMigration().build()
     }
 }

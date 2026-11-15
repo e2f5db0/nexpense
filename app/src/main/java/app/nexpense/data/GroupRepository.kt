@@ -60,8 +60,12 @@ class GroupRepository(
         dao.group(publicKey)?.let { dao.saveGroup(it.copy(actingMemberId = personId)) }
     }
 
-    suspend fun setGroupHidden(publicKey: String, hidden: Boolean) {
-        dao.group(publicKey)?.let { dao.saveGroup(it.copy(hidden = hidden)) }
+    suspend fun groups(): List<GroupEntity> = dao.groups()
+
+    suspend fun removeGroup(publicKey: String) {
+        dao.deleteEvents(publicKey)
+        dao.deleteGroup(publicKey)
+        vault.remove(publicKey)
     }
 
     internal suspend fun publish(publicKey: String, kind: Int, identifier: String, payload: Any) {
