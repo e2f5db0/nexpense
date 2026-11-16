@@ -24,7 +24,9 @@ copies held by other relays or clients. There is no forward secrecy.
 
 ## Build
 
-Requires JDK 17 and Android SDK 35. The Gradle wrapper supplies Gradle 8.9.
+Requires JDK 17 and Android SDK 35. The Gradle wrapper supplies Gradle 8.9. Set
+`sdk.dir` in `local.properties`, and if `java` is not on `PATH`, prefix Gradle with
+`JAVA_HOME` (on this machine `JAVA_HOME=$PWD/.tooling/jdk ./gradlew …`).
 
 ```bash
 ./gradlew testDebugUnitTest assembleDebug
@@ -43,19 +45,8 @@ duplicates, deletion, and arrival-order convergence.
 
 Create a long-lived release keystore and keep a secure backup. Copy
 `keystore.properties.example` to `keystore.properties`, fill in its absolute path and
-passwords, then run:
-
-```bash
-./gradlew testReleaseUnitTest lintRelease assembleRelease
-cp app/build/outputs/apk/release/app-release.apk nexpense-release.apk
-```
-
-Upload `nexpense-release.apk` to a GitHub Release tagged `vX.Y.Z`. In Obtainium choose
-**Add app**, enter this repository's GitHub URL, and select the release APK. Keep the
-same signing certificate and increment `versionCode`/`versionName` for every update;
-otherwise Android will reject upgrades.
-
-The tag workflow automates testing and release upload. Configure repository secrets:
+passwords. Configure the repository secrets that `.github/workflows/release.yml`
+signs with on tag pushes:
 
 - `NEXPENSE_KEYSTORE_BASE64`: Base64-encoded release JKS
 - `NEXPENSE_STORE_PASSWORD`
@@ -64,6 +55,28 @@ The tag workflow automates testing and release upload. Configure repository secr
 
 No `nsec` belongs in GitHub, release assets, logs, issues, or CI secrets. Those secrets
 are only for the Android application signing key.
+
+### Release checklist
+
+One release cycle is one feature commit plus one version bump. Pushing a `v*` tag runs
+the "Test and release" workflow, which re-tests, re-signs with the repository secrets,
+and attaches `nexpense-release.apk` to a GitHub Release with generated notes — the
+published asset is always CI's build, never a local copy.
+
+1. Validate locally: `./gradlew testReleaseUnitTest lintRelease assembleRelease`.
+2. Commit the cycle's changes as one feature commit with a short imperative subject,
+   for example `Improve ledger workflows and pixel-art interface`.
+3. Bump `versionCode` (+1) and `versionName` in `app/build.gradle.kts` and commit it
+   as `Bump version to X.Y.Z`.
+4. Tag the bump commit with a lightweight `vX.Y.Z` tag named after `versionName`.
+5. Rebuild `assembleRelease` and copy `app-release.apk` to `nexpense-release.apk`
+   after the bump if you want a local APK for device testing; it is gitignored, and
+   a copy built before the bump still carries the old `versionCode`.
+6. `git push origin main vX.Y.Z` publishes the release.
+
+Keep the same signing certificate and increment `versionCode`/`versionName` for every
+update; otherwise Android will reject upgrades. In Obtainium choose **Add app**, enter
+this repository's GitHub URL, and select the release APK.
 
 ## License
 
