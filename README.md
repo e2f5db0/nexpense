@@ -8,7 +8,7 @@ identifies and encrypts each independent group.
 
 - Generate a group key on Android or import one as `nsec` or 64-character hex.
 - Confirm who you are acting as at every launch and switch members without logging out.
-- Add all members at creation and name or remove groups; deterministic avatars distinguish them at a glance.
+- Add and rename members without changing their debts; name or remove groups.
 - Equal or custom requests from any subset, including an optional requester share.
 - Partial/full cash settlements and directed line-by-line outstanding debts per person.
 - NIP-01 signatures, NIP-44 v2 encryption, NIP-42 relay AUTH, and NIP-09 deletion.
@@ -104,4 +104,5 @@ archive for that tag.
 
 JVM protocol tests and Android builds run without an emulator. Relay-specific
 policies and Obtainium installation must also be tested on a physical Android
-device before a production release.
+device before a production release. Offline backup restoration has been successfully
+tested by a user; regularly test your own backups and keep the nsec separately.

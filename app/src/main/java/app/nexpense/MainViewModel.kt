@@ -119,6 +119,7 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
         if (selectAsActor) repository.selectActor(currentKey(), personId)
     }
     fun renameGroup(name: String) = launch { repository.saveSettings(currentKey(), name) }
+    fun renamePerson(personId: String, name: String) = launch { repository.renamePerson(currentKey(), personId, name) }
 
     fun request(description: String, totalMinor: Long, participants: Collection<String>) = launch {
         val actor = requireActor()

@@ -15,6 +15,8 @@ import app.nexpense.nostr.NostrEvent
 import app.nexpense.signer.DeviceGroupSigner
 import app.nexpense.signer.GroupSigner
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,8 +33,9 @@ class RelayDurabilityTest {
     private val publicKey = Secp256k1.publicKey(secret).toHex()
     private val signer = DeviceGroupSigner(secret)
     private val relay = FakeRelay()
+    private var time = 1_800_000_000_000L
     private val repository = GroupRepository(context, dao, DeviceKeyVault(context), relay,
-        enqueueOutbox = { _, _ -> }, clock = { 1_800_000_000_000 }, signerOverride = { signer })
+        enqueueOutbox = { _, _ -> }, clock = { time }, signerOverride = { signer })
     private val urls = listOf("wss://one.example", "wss://two.example", "wss://three.example")
 
     @After fun close() = database.close()
@@ -101,6 +104,36 @@ class RelayDurabilityTest {
         assertEquals("Weekend", projected.settings.name)
         assertEquals(setOf("Alice", "Bob"), projected.people.map { it.name }.toSet())
         assertEquals(500L, projected.ledger.balance(bob, alice))
+    }
+
+    @Test fun renamePreservesDebtsHistoryAndActorAcrossRapidEdits() = runBlocking {
+        dao.saveGroup(GroupEntity(publicKey, "Test", "DEVICE", relayUrls = urls.joinToString(",")))
+        val alice = repository.addPerson(publicKey, "Alice")
+        val bob = repository.addPerson(publicKey, "Bob")
+        repository.selectActor(publicKey, bob)
+        repository.request(publicKey, alice, "Dinner", 1200, listOf(bob))
+        repository.pay(publicKey, bob, alice, 200)
+        val before = GroupProjector.project(dao.group(publicKey)!!, dao.events(publicKey))
+
+        // Advance the simulated clock while a same-second rename waits for the next second.
+        time += 900
+        val rename = async { repository.renamePerson(publicKey, bob, " Robert ") }
+        delay(20)
+        time += 100
+        rename.await()
+        val after = GroupProjector.project(dao.group(publicKey)!!, dao.events(publicKey))
+        assertEquals("Robert", after.people.first { it.personId == bob }.name)
+        assertEquals(bob, after.actingPerson?.personId)
+        assertEquals(1000L, after.ledger.balance(bob, alice))
+        assertEquals(before.ledger, after.ledger)
+        assertTrue(runCatching { repository.renamePerson(publicKey, bob, "alice") }.isFailure)
+        assertTrue(runCatching { repository.renamePerson(publicKey, bob, "   ") }.isFailure)
+        assertTrue(runCatching { repository.renamePerson(publicKey, "missing", "Robert") }.isFailure)
+
+        time -= 2000
+        assertTrue(runCatching { repository.renamePerson(publicKey, bob, "Bobby") }.isFailure)
+        assertEquals("Robert", GroupProjector.project(dao.group(publicKey)!!, dao.events(publicKey))
+            .people.first { it.personId == bob }.name)
     }
 
     private class FakeRelay : RelayTransport {

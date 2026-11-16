@@ -91,7 +91,6 @@ fun RequestDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: B
                         onValueChange = { checked -> selected = if (checked) selected + person.personId else selected - person.personId },
                     ).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        NameAvatar(person.name, 24.dp)
                         Checkbox(person.personId in selected, null, enabled = actionsEnabled)
                         Text(person.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }

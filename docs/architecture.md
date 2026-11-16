@@ -48,7 +48,8 @@ client signs kind 22242 with `relay` and `challenge` tags.
 
 The latest valid addressable event wins, with event ID as a deterministic tie-breaker.
 One addressable event per member prevents concurrent roster additions overwriting each
-other. Renaming publishes a replacement with the same `d` tag.
+other. Renaming publishes a replacement with the same `d` tag and member UUID, so
+existing debts and history remain attached to that member.
 
 ### Expense
 
@@ -122,7 +123,7 @@ recovery. No shared balance snapshot is authoritative.
 
 Native Kotlin, Compose Material 3, Room, DataStore, WorkManager, OkHttp, Kotlin
 serialization, and Bouncy Castle. The persistent header shows the group and a large
-centered acting-member name with a deterministic avatar. Request supports equal splits
+centered acting-member name. Request supports equal splits
 and everyone-including-requester. Pay supports partial and full settlement. Every
 write confirmation repeats the acting member.
 

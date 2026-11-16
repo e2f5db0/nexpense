@@ -9,7 +9,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -83,8 +85,6 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
             if (actor != null) {
                 Row(Modifier.fillMaxWidth().clickable { actors = true },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                    NameAvatar(actor.name, 40.dp)
-                    Spacer(Modifier.width(12.dp))
                     Text(actor.name, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.Bold, color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Icon(Icons.Default.ArrowDropDown, "Choose group member")
@@ -116,14 +116,18 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                         }
                     }
                 } else {
-                    Text("Who are you acting as?", Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-                    state.people.forEach { person -> Button(onClick = { viewModel.selectActor(person.personId) }, Modifier.fillMaxWidth()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            NameAvatar(person.name, 24.dp)
-                            Text(person.name)
+                    Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Text("Who are you acting as?", Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                            state.people.forEach { person ->
+                                Button(onClick = { viewModel.selectActor(person.personId) }, Modifier.fillMaxWidth()) {
+                                    Text(person.name)
+                                }
+                            }
                         }
-                    } }
+                    }
                 }
             } else {
                 val totals = state.ledger.totals(actor.personId)
@@ -147,7 +151,6 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                             colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
                             Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                NameAvatar(person.name, 28.dp)
                                 Column(Modifier.weight(1f)) {
                                     Text(person.name, fontWeight = FontWeight.SemiBold)
                                     Text(if (balance > 0) "You owe ${person.name}" else if (balance < 0) "${person.name} owes you" else "Settled",

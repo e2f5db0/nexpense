@@ -22,6 +22,7 @@ import app.nexpense.nostr.protocolJson
 import app.nexpense.signer.DeviceGroupSigner
 import app.nexpense.signer.GroupSigner
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
@@ -83,13 +84,38 @@ class GroupRepository(
         vault.remove(publicKey)
     }
 
-    internal suspend fun publish(publicKey: String, kind: Int, identifier: String, payload: Any) {
+    internal suspend fun publish(publicKey: String, kind: Int, identifier: String, payload: Any, createdAt: Long = now()) {
         val plaintext = encodePayload(payload)
         val signer = signer(publicKey)
-        val draft = EventDraft(publicKey, now(), kind,
+        val draft = EventDraft(publicKey, createdAt, kind,
             listOf(listOf("d", identifier), listOf("t", "nexpense-v1")), signer.encrypt(plaintext))
         store(publicKey, signer.sign(draft), plaintext, true)
         enqueueOutbox(context, publicKey)
+    }
+
+    suspend fun renamePerson(publicKey: String, personId: String, name: String) = lock(publicKey).withLock {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "Enter a member name" }
+        val group = dao.group(publicKey) ?: error("Unknown group")
+        val events = dao.events(publicKey)
+        val people = GroupProjector.project(group, events).people
+        val person = people.firstOrNull { it.personId == personId } ?: error("Member not found")
+        require(people.none { it.personId != personId && it.name.equals(trimmed, ignoreCase = true) }) {
+            "Group member names must be different"
+        }
+        if (person.name == trimmed) return@withLock
+        val identifier = "nexpense:v1:person:$personId"
+        val latest = events.filter { event ->
+            event.kind == 30078 && runCatching {
+                protocolJson.decodeFromString<List<List<String>>>(event.tagsJson)
+                    .any { it.firstOrNull() == "d" && it.getOrNull(1) == identifier }
+            }.getOrDefault(false)
+        }.maxOfOrNull { it.createdAt } ?: error("Member record not found")
+        require(now() >= latest) { "Device clock is behind the member record; check the date and time" }
+        if (now() == latest) delay(1000L - clock().mod(1000L))
+        val timestamp = now()
+        require(timestamp > latest) { "Unable to create a newer member record; check the device clock" }
+        publish(publicKey, 30078, identifier, person.copy(name = trimmed), timestamp)
     }
 
     internal suspend fun publishDeletion(publicKey: String, eventId: String, actorId: String) {
