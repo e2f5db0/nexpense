@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
@@ -48,6 +49,7 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
     var request by remember { mutableStateOf(false) }
     var activity by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<Person?>(null) }
+    var addMember by remember { mutableStateOf(false) }
     val actor = state.actingPerson
     val waitingForPeople = actor == null && state.people.isEmpty()
     val actorSyncGate = actor == null && state.syncing
@@ -110,8 +112,16 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         NostrichLoading(size = 64.dp)
-                        Text(if (state.syncing) "Loading group members…" else "No group members loaded yet. Sync or switch groups.",
-                            textAlign = TextAlign.Center)
+                        if (state.syncing) {
+                            Text("Loading group members…", textAlign = TextAlign.Center)
+                        } else {
+                            Text("No group members loaded yet. Sync to load an existing group, or add the first member below.",
+                                textAlign = TextAlign.Center)
+                            OutlinedButton(onClick = { addMember = true }, enabled = !busy) {
+                                Icon(Icons.Default.Add, null)
+                                Text("Add a new member")
+                            }
+                        }
                     }
                 } else {
                     Text("Who are you acting as?", Modifier.fillMaxWidth(),
@@ -153,6 +163,7 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
         }
     }
     if (actors) ActorDialog(state, viewModel, actionsEnabled) { actors = false }
+    if (addMember) AddMemberDialog(viewModel, busy) { addMember = false }
     if (groupSwitcher) GroupSwitcherDialog(groups, viewModel, onAddGroup, actorSyncGate) { groupSwitcher = false }
     if (settings) SettingsDialog(state, viewModel, !busy && !actorSyncGate) { settings = false }
     if (pay) PayDialog(state, viewModel, actionsEnabled) { pay = false }

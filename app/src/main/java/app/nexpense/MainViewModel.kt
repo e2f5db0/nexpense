@@ -104,7 +104,10 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
             }
         }
     }
-    fun addPerson(name: String) = launch { repository.addPerson(currentKey(), name) }
+    fun addPerson(name: String, selectAsActor: Boolean = false) = launch {
+        val personId = repository.addPerson(currentKey(), name)
+        if (selectAsActor) repository.selectActor(currentKey(), personId)
+    }
     fun renameGroup(name: String) = launch { repository.saveSettings(currentKey(), name) }
 
     fun request(description: String, totalMinor: Long, participants: Collection<String>) = launch {

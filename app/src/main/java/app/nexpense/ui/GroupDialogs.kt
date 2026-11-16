@@ -68,6 +68,23 @@ fun ActorDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boo
 }
 
 @Composable
+fun AddMemberDialog(viewModel: MainViewModel, busy: Boolean, dismiss: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(onDismissRequest = dismiss, title = { Text("Add a new member") },
+        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(),
+                label = { Text("Member name") }, singleLine = true, enabled = !busy)
+            Text("The member is added to the shared group ledger and published with the group key.",
+                style = MaterialTheme.typography.bodySmall)
+        } },
+        confirmButton = { Button(onClick = {
+            viewModel.addPerson(name, selectAsActor = true)
+            dismiss()
+        }, enabled = !busy && name.isNotBlank()) { Text("Add member") } },
+        dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
+}
+
+@Composable
 fun GroupSwitcherDialog(groups: List<GroupEntity>, viewModel: MainViewModel, addGroup: () -> Unit,
     switchingOnly: Boolean = false, dismiss: () -> Unit) {
     var removing by remember { mutableStateOf<GroupEntity?>(null) }
