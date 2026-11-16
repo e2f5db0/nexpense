@@ -4,6 +4,9 @@
 package app.nexpense
 
 import android.content.Context
+import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -29,6 +32,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MainViewModel(private val repository: GroupRepository, context: Context) : ViewModel() {
+    private val appContext = context.applicationContext
     private val preferences = context.getSharedPreferences("session", Context.MODE_PRIVATE)
     private val appearancePreferences = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
     private val selectedKey = MutableStateFlow<String?>(preferences.getString("group", null))
@@ -36,6 +40,7 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     val busy = MutableStateFlow(false)
     val error = MutableStateFlow<String?>(null)
     val generatedBackup = MutableStateFlow<String?>(null)
+    val notice = MutableStateFlow<String?>(null)
     val accent = MutableStateFlow(appearancePreferences.getString("accent", null)
         ?.let { runCatching { AccentColor.valueOf(it) }.getOrNull() } ?: AccentColor.PURPLE)
     val appFont = MutableStateFlow(appearancePreferences.getString("font", null)
@@ -45,6 +50,11 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     @OptIn(ExperimentalCoroutinesApi::class)
     val group = selectedKey.flatMapLatest { key ->
         if (key == null) flowOf(null) else repository.observeGroup(key)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val durability = selectedKey.flatMapLatest { key ->
+        if (key == null) flowOf(null) else repository.observeDurability(key)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
@@ -119,12 +129,38 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     fun pay(to: String, amountMinor: Long) = launch { repository.pay(currentKey(), requireActor(), to, amountMinor) }
     fun delete(eventId: String) = launch { repository.delete(currentKey(), eventId, requireActor()) }
     fun dismissError() { error.value = null }
+    fun dismissNotice() { notice.value = null }
     fun dismissBackup() { generatedBackup.value = null }
 
-    private fun startSync(publicKey: String) {
+    fun addRelay(url: String) = launch { repository.addRelay(currentKey(), url) }
+    fun removeRelay(url: String) = launch { repository.removeRelay(currentKey(), url) }
+    fun verifyAndRepair() { selectedKey.value?.let { startSync(it, forceFull = true) } }
+
+    fun exportBackup(uri: Uri, publicKey: String) = launch {
+        val result = withContext(Dispatchers.IO) {
+            val output = appContext.contentResolver.openOutputStream(uri, "wt") ?: error("Unable to open the backup file")
+            repository.exportBackup(publicKey, output)
+        }
+        notice.value = "Exported ${result.eventCount} encrypted events. Keep the group nsec separately."
+    }
+
+    fun restoreBackup(uri: Uri, publicKey: String) = launch {
+        val result = withContext(Dispatchers.IO) {
+            repository.restoreBackup(publicKey) {
+                appContext.contentResolver.openInputStream(uri) ?: error("Unable to open the backup file")
+            }
+        }
+        notice.value = "Restored ${result.eventCount} encrypted events. Existing events were preserved."
+        viewModelScope.launch {
+            try { repository.synchronize(publicKey, forceFull = true) }
+            catch (t: Throwable) { error.value = t.message ?: "Synchronization failed" }
+        }
+    }
+
+    private fun startSync(publicKey: String, forceFull: Boolean = false) {
         if (syncingKeys.add(publicKey)) {
             viewModelScope.launch {
-                try { repository.synchronize(publicKey) }
+                try { repository.synchronize(publicKey, forceFull) }
                 catch (t: Throwable) { error.value = t.message ?: "Synchronization failed" }
                 finally { syncingKeys.remove(publicKey) }
             }

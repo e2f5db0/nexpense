@@ -78,6 +78,56 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrationsFromVersions1And2ReachCurrentSchema() {
+        for (version in 1..2) {
+            val database = "migration-to-v4-$version"
+            helper.createDatabase(database, version).apply {
+                execSQL("INSERT INTO groups (publicKey, localName, keySource, relayUrls, lastSyncedAt, syncCursor, syncStatus) VALUES ('group-key', 'Weekend', 'DEVICE', 'wss://example.com', 123, 456, 'Synced')")
+                close()
+            }
+            val migrations = if (version == 1) arrayOf(NexpenseDatabase.MIGRATION_1_2,
+                NexpenseDatabase.MIGRATION_2_3, NexpenseDatabase.MIGRATION_3_4)
+            else arrayOf(NexpenseDatabase.MIGRATION_2_3, NexpenseDatabase.MIGRATION_3_4)
+            helper.runMigrationsAndValidate(database, 4, true, *migrations).apply {
+                query("SELECT localName, syncCursor, lastBackupAt FROM groups").use { cursor ->
+                    assertTrue(cursor.moveToFirst())
+                    assertEquals("Weekend", cursor.getString(0))
+                    assertEquals(456L, cursor.getLong(1))
+                    assertEquals(0L, cursor.getLong(2))
+                }
+                close()
+            }
+        }
+    }
+
+    @Test
+    fun migrationFromVersion3PreservesPendingEventsAndStartsRelayCursorsFromZero() {
+        val database = "migration-test-v3"
+        helper.createDatabase(database, 3).apply {
+            execSQL("INSERT INTO groups (publicKey, localName, keySource, relayUrls, lastSyncedAt, syncCursor, syncStatus) VALUES ('group-key', 'Weekend', 'DEVICE', 'wss://example.com', 123, 456, 'Synced')")
+            execSQL("INSERT INTO events (groupPublicKey, id, pubkey, createdAt, kind, tagsJson, content, sig, plaintext, pending) VALUES ('group-key', 'event-id', 'group-key', 10, 78, '[]', 'ciphertext', 'signature', 'plaintext', 1)")
+            close()
+        }
+        helper.runMigrationsAndValidate(database, 4, true, NexpenseDatabase.MIGRATION_3_4).apply {
+            query("SELECT lastBackupAt, syncCursor FROM groups").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0L, cursor.getLong(0))
+                assertEquals(456L, cursor.getLong(1))
+            }
+            query("SELECT pending, content FROM events").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(1, cursor.getInt(0))
+                assertEquals("ciphertext", cursor.getString(1))
+            }
+            query("SELECT COUNT(*) FROM relay_states").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+            close()
+        }
+    }
+
     private companion object {
         const val TEST_DATABASE_V1 = "migration-test-v1"
         const val TEST_DATABASE_V2 = "migration-test-v2"

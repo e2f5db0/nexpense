@@ -54,6 +54,7 @@ fun NexpenseApp(viewModel: MainViewModel) {
     val group by viewModel.group.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val error by viewModel.error.collectAsState()
+    val notice by viewModel.notice.collectAsState()
     val backup by viewModel.generatedBackup.collectAsState()
     val accent by viewModel.accent.collectAsState()
     val appFont by viewModel.appFont.collectAsState()
@@ -89,6 +90,10 @@ fun NexpenseApp(viewModel: MainViewModel) {
     error?.let {
         AlertDialog(onDismissRequest = viewModel::dismissError, title = { Text("Something went wrong") },
             text = { Text(it) }, confirmButton = { TextButton(onClick = viewModel::dismissError) { Text("OK") } })
+    }
+    notice?.let {
+        AlertDialog(onDismissRequest = viewModel::dismissNotice, title = { Text("Backup") },
+            text = { Text(it) }, confirmButton = { TextButton(onClick = viewModel::dismissNotice) { Text("OK") } })
     }
     backup?.let { nsec ->
         AlertDialog(onDismissRequest = {}, title = { Text("Back up this group key") },

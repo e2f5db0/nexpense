@@ -106,9 +106,19 @@ pending-change states; the syncing animation sits in a fixed navbar slot, so not
 shifts when it appears or disappears. Writes update Room immediately
 and schedule a network-constrained outbox worker; publishing does not require a foreground catch-up fetch.
 
-Room stores signed ciphertext events, decrypted entries, tombstones, relay cursors,
-and an outbox. Live subscriptions and overlapping catch-up requests filter by author,
-kinds, and `t=nexpense-v1`, deduplicating IDs. No shared balance snapshot is authoritative.
+Room stores signed ciphertext events, decrypted entries, tombstones, independent relay cursors,
+and per-event/per-relay delivery state. Overlapping catch-up requests filter by author, kinds,
+and `t=nexpense-v1`, deduplicating IDs. Pending deliveries retry independently; two relay
+acknowledgments clear the local pending indicator while remaining relays continue retrying.
+Periodic and manual full syncs check event IDs and repair missing current state without
+republishing deleted entries. Acknowledgment or verification does not guarantee retention.
+
+Group settings allow users to export and restore versioned JSONL backups of signed ciphertext
+events, including pending events and tombstones. The backup includes public event metadata and
+an integrity checksum, but excludes plaintext and the group nsec. Restoration requires the
+matching nsec and validates signatures, decryption, count, and checksum before insertion. Keep
+the nsec separately and test restores: either backup or key alone is insufficient for offline
+recovery. No shared balance snapshot is authoritative.
 
 Native Kotlin, Compose Material 3, Room, DataStore, WorkManager, OkHttp, Kotlin
 serialization, and Bouncy Castle. The persistent header shows the group and a large

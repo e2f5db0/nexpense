@@ -3,6 +3,8 @@
 
 package app.nexpense.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +38,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
 import app.nexpense.crypto.Npub
+import app.nexpense.data.EventBackup
 import app.nexpense.data.GroupEntity
+import java.text.DateFormat
+import java.util.Date
 import app.nexpense.data.GroupState
 
 @Composable
@@ -102,7 +108,7 @@ fun GroupSwitcherDialog(groups: List<GroupEntity>, viewModel: MainViewModel, add
     removing?.let { group ->
         AlertDialog(onDismissRequest = { removing = null },
             title = { Text("Remove ${group.localName}?") },
-            text = { Text("The group key and its cached events are deleted from this device, as if the group was never here. Anyone with the nsec can re-import the group later.") },
+            text = { Text("The group key and all cached events will be deleted from this device. The nsec alone cannot recover events lost by relays. Export a backup first and store the nsec separately.") },
             confirmButton = { TextButton(onClick = {
                 viewModel.removeGroup(group.publicKey)
                 removing = null
@@ -132,6 +138,15 @@ fun SettingsDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: 
     var name by remember(state.displayName) { mutableStateOf(state.displayName) }
     val npub = remember(state.group.publicKey) { Npub.encode(state.group.publicKey) }
     val clipboard = LocalClipboardManager.current
+    val durability by viewModel.durability.collectAsState()
+    var relayUrl by remember { mutableStateOf("") }
+    val publicKey = state.group.publicKey
+    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(EventBackup.MIME_TYPE)) { uri ->
+        if (uri != null) viewModel.exportBackup(uri, publicKey)
+    }
+    val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.restoreBackup(uri, publicKey)
+    }
     AlertDialog(onDismissRequest = dismiss, title = { Text("Group settings") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -144,6 +159,38 @@ fun SettingsDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: 
                     Icon(Icons.Default.ContentCopy, "Copy npub")
                 }
             }
+            durability?.takeIf { it.groupPublicKey == publicKey }?.let { info ->
+                Text(info.headline, style = MaterialTheme.typography.titleMedium)
+                Text("Relay acknowledgments and verification do not guarantee long-term retention.", style = MaterialTheme.typography.bodySmall)
+                info.relays.forEach { relay ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(relay.url, style = MaterialTheme.typography.bodySmall)
+                            Text("${relay.label} · ${relay.verified} verified · ${relay.acknowledged} acknowledged · ${relay.pending + relay.unknown} waiting",
+                                style = MaterialTheme.typography.bodySmall)
+                            relay.lastError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                        }
+                        IconButton(onClick = { viewModel.removeRelay(relay.url) }, enabled = actionsEnabled && info.relays.size > 1) {
+                            Icon(Icons.Default.Delete, "Remove relay ${relay.url}")
+                        }
+                    }
+                }
+                OutlinedTextField(relayUrl, { relayUrl = it }, Modifier.fillMaxWidth(), label = { Text("Add wss:// relay") },
+                    singleLine = true, enabled = actionsEnabled)
+                TextButton(onClick = { viewModel.addRelay(relayUrl); relayUrl = "" }, enabled = actionsEnabled && relayUrl.isNotBlank()) {
+                    Text("Add relay")
+                }
+                Text("More relays use more battery and expose activity metadata to more operators.", style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = viewModel::verifyAndRepair, enabled = actionsEnabled && !state.syncing) { Text("Verify and repair now") }
+                val backupDate = if (info.lastBackupAt == 0L) "Never" else DateFormat.getDateTimeInstance().format(Date(info.lastBackupAt))
+                Text("Last backup: $backupDate · Export regularly, especially after changes", style = MaterialTheme.typography.bodySmall)
+            }
+            Text("Backup contains encrypted events and visible Nostr metadata, not the nsec. Keep both safely, separately.",
+                style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = { export.launch("nexpense-${publicKey.take(8)}.${EventBackup.FILE_EXTENSION}") }, enabled = actionsEnabled) {
+                Text("Export encrypted backup")
+            }
+            TextButton(onClick = { restore.launch(arrayOf("*/*")) }, enabled = actionsEnabled) { Text("Restore encrypted backup") }
         } },
         confirmButton = { Button(onClick = { if (name.isNotBlank()) { viewModel.renameGroup(name); dismiss() } },
             enabled = actionsEnabled && name.isNotBlank()) { Text("Save") } },

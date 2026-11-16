@@ -12,14 +12,18 @@ identifies and encrypts each independent group.
 - Equal or custom requests from any subset, including an optional requester share.
 - Partial/full cash settlements and directed line-by-line outstanding debts per person.
 - NIP-01 signatures, NIP-44 v2 encryption, NIP-42 relay AUTH, and NIP-09 deletion.
-- Room cache, immediate local writes, background outbox delivery, overlapping catch-up, and periodic sync.
+- Room cache, immediate local writes, per-relay outbox retries, independent catch-up cursors, and periodic repair.
+- Encrypted event-log export/restore and configurable free or self-hosted relays.
 - Deterministic integer-cent balances with duplicate/out-of-order event handling.
 - Pixel-art or monospace interface with orange, blue, purple, red, or green accents, N€ branding, and animated loading indicators.
 
 **Trust and consistency:** every key holder can read, write, impersonate, and delete as
 any member. Event contents are private, but Nostr metadata is not. Devices can show
 temporarily different balances while offline or relay sets differ. They converge when
-they have the same valid events and deletion requests. Nostr deletion does not erase
+they have the same valid events and deletion requests. Relay acknowledgments are not a
+long-term retention guarantee. Regularly export the encrypted event backup in group settings
+and back up the nsec separately; both are required to recover without relays. Backup files
+expose event metadata, although payloads remain encrypted. Nostr deletion does not erase
 copies held by other relays or clients. There is no forward secrecy.
 
 ## Build

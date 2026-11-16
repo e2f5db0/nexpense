@@ -15,6 +15,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import app.nexpense.NexpenseApplication
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -24,12 +25,18 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         if (outboxGroup != null) {
             return try {
                 if (app.repository.flushPending(outboxGroup)) Result.success() else Result.retry()
-            } catch (_: Throwable) {
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
                 Result.retry()
             }
         }
         val groups = app.database.dao().groups()
-        groups.forEach { runCatching { app.repository.synchronize(it.publicKey) } }
+        groups.forEach {
+            try { app.repository.synchronize(it.publicKey) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Other groups can still synchronize. */ }
+        }
         return Result.success()
     }
 
