@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
 import app.nexpense.data.GroupState
@@ -101,12 +102,18 @@ fun PersonDetailDialog(state: GroupState, person: Person, viewModel: MainViewMod
 
 @Composable
 private fun DeleteConfirmation(target: LedgerEvent?, viewModel: MainViewModel, actionsEnabled: Boolean, dismiss: () -> Unit) {
-    if (target != null) AlertDialog(onDismissRequest = dismiss, title = { Text("Are you sure?") },
-        text = { Text("Remove this ledger entry for everyone in the group? Balances will be recalculated. Deletion cannot erase copies held by other devices or servers.") },
-        confirmButton = { TextButton(onClick = { viewModel.delete(target.event.id); dismiss() }, enabled = actionsEnabled) {
-            Text("Delete", color = MaterialTheme.colorScheme.error)
-        } },
-        dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
+    if (target != null) {
+        val description = when (val entry = target.entry) {
+            is Expense -> "${entry.description}\n\n${minorToEuro(entry.totalMinor)}"
+            is Settlement -> "Cash settlement\n\n${minorToEuro(entry.amountMinor)}"
+        }
+        AlertDialog(onDismissRequest = dismiss, title = { Text("Remove this entry?") },
+            text = { Text(description, Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+            confirmButton = { TextButton(onClick = { viewModel.delete(target.event.id); dismiss() }, enabled = actionsEnabled) {
+                Text("Delete", color = MaterialTheme.colorScheme.error)
+            } },
+            dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
+    }
 }
 
 private fun GroupState.name(id: String) = people.firstOrNull { it.personId == id }?.name ?: "Unknown member"

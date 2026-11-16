@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
@@ -41,13 +42,16 @@ fun PayDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boole
     val amountMinor = euroToMinor(amount)
 
     if (confirm && selected != null) {
-        AlertDialog(onDismissRequest = { confirm = false }, title = { Text("Record cash payment?") },
-            text = { Text("Acting as ${actor.name}\n\nRecord ${minorToEuro(amountMinor)} paid in cash to ${selected.name}. This only updates shared bookkeeping.") },
+        AlertDialog(onDismissRequest = { confirm = false },
+            title = { Text("Record cash payment?", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+            text = { Text("Acting as ${actor.name}\n\nRecord ${minorToEuro(amountMinor)} paid in cash to ${selected.name}. This only updates shared bookkeeping.",
+                Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
             confirmButton = { Button(onClick = { viewModel.pay(selected.personId, amountMinor); dismiss() },
                 enabled = actionsEnabled) { Text("Confirm payment") } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Back") } })
     } else {
-        AlertDialog(onDismissRequest = dismiss, title = { Text("Pay · acting as ${actor.name}") },
+        AlertDialog(onDismissRequest = dismiss,
+            title = { Text("Pay · acting as ${actor.name}", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
             text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (creditors.isEmpty()) Text("You have no outstanding debts.")

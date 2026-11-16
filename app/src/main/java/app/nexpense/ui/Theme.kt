@@ -9,6 +9,8 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -20,13 +22,24 @@ import app.nexpense.R
 val Navy = Color(0xFF07050C)
 val Surface = Color(0xFF130D1D)
 val Blue = Color(0xFF60A5FA)
-val NostrPurple = Color(0xFF8B5CF6)
+val LogoYellow = Color(0xFFFACC15)
 val PixelFont = FontFamily(Font(R.font.press_start_2p))
+val LocalArcadeFont = staticCompositionLocalOf { true }
 
-private val colors = darkColorScheme(
-    primary = NostrPurple,
-    onPrimary = Color.White,
-    secondary = Color(0xFFC4B5FD),
+enum class AccentColor(val label: String, val primary: Color, val secondary: Color, val outline: Color) {
+    ORANGE("Orange", Color(0xFFFB923C), Color(0xFFFDBA74), Color(0xFFC2410C)),
+    BLUE("Blue", Color(0xFF60A5FA), Color(0xFF93C5FD), Color(0xFF2563EB)),
+    PURPLE("Purple", Color(0xFF8B5CF6), Color(0xFFC4B5FD), Color(0xFF6D43B0)),
+    RED("Red", Color(0xFFF87171), Color(0xFFFCA5A5), Color(0xFFB91C1C)),
+    GREEN("Green", Color(0xFF4ADE80), Color(0xFF86EFAC), Color(0xFF15803D)),
+}
+
+enum class AppFont(val label: String) { MONOSPACE("Monospace"), ARCADE("Arcade") }
+
+private fun colors(accent: AccentColor) = darkColorScheme(
+    primary = accent.primary,
+    onPrimary = Navy,
+    secondary = accent.secondary,
     onSecondary = Navy,
     tertiary = Color(0xFFA3E635),
     background = Navy,
@@ -35,7 +48,7 @@ private val colors = darkColorScheme(
     onSurface = Color(0xFFF5F0FF),
     surfaceVariant = Color(0xFF21132F),
     onSurfaceVariant = Color(0xFFC5B8D4),
-    outline = Color(0xFF6D43B0),
+    outline = accent.outline,
     error = Color(0xFFFF6B6B),
 )
 
@@ -59,6 +72,20 @@ private val typography = Typography(
     labelSmall = TextStyle(fontFamily = PixelFont, fontSize = 8.sp, lineHeight = 12.sp),
 )
 
+private val monospaceTypography = Typography().let { base ->
+    fun TextStyle.mono() = copy(fontFamily = FontFamily.Monospace)
+    Typography(
+        displayLarge = base.displayLarge.mono(), displayMedium = base.displayMedium.mono(),
+        displaySmall = base.displaySmall.mono(), headlineLarge = base.headlineLarge.mono(),
+        headlineMedium = base.headlineMedium.mono(), headlineSmall = base.headlineSmall.mono(),
+        titleLarge = base.titleLarge.mono(), titleMedium = base.titleMedium.mono(),
+        titleSmall = base.titleSmall.mono(), bodyLarge = base.bodyLarge.mono(),
+        bodyMedium = base.bodyMedium.mono(), bodySmall = base.bodySmall.mono(),
+        labelLarge = base.labelLarge.mono(), labelMedium = base.labelMedium.mono(),
+        labelSmall = base.labelSmall.mono(),
+    )
+}
+
 private val shapes = Shapes(
     extraSmall = RoundedCornerShape(0.dp),
     small = RoundedCornerShape(0.dp),
@@ -68,6 +95,14 @@ private val shapes = Shapes(
 )
 
 @Composable
-fun NexpenseTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = colors, typography = typography, shapes = shapes, content = content)
+fun NexpenseTheme(
+    accent: AccentColor = AccentColor.PURPLE,
+    appFont: AppFont = AppFont.ARCADE,
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(LocalArcadeFont provides (appFont == AppFont.ARCADE)) {
+        MaterialTheme(colorScheme = colors(accent),
+            typography = if (appFont == AppFont.ARCADE) typography else monospaceTypography,
+            shapes = shapes, content = content)
+    }
 }

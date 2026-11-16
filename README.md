@@ -14,7 +14,7 @@ identifies and encrypts each independent group.
 - NIP-01 signatures, NIP-44 v2 encryption, NIP-42 relay AUTH, and NIP-09 deletion.
 - Room cache, immediate local writes, background outbox delivery, overlapping catch-up, and periodic sync.
 - Deterministic integer-cent balances with duplicate/out-of-order event handling.
-- Pixel-art, monospace, and Nostr-purple Material 3 interface.
+- Pixel-art or monospace interface with orange, blue, purple, red, or green accents, N€ branding, and animated loading indicators.
 
 **Trust and consistency:** every key holder can read, write, impersonate, and delete as
 any member. Event contents are private, but Nostr metadata is not. Devices can show
@@ -35,7 +35,7 @@ with Android Keystore. Android backup and screenshots are disabled to reduce acc
 key disclosure. `local.properties`, `.tooling/`, and signing secrets are not committed.
 
 See [the protocol and architecture](docs/architecture.md) for event schemas and ledger
-semantics. Tests include official NIP-44 and BIP-340 vectors, self-encryption, tamper
+semantics. Tests include official NIP-19, NIP-44, and BIP-340 vectors, self-encryption, tamper
 rejection, splitting, self-shares, netting, partial/full payment, overpayment,
 duplicates, deletion, and arrival-order convergence.
 

@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -28,9 +29,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
+import app.nexpense.crypto.Npub
 import app.nexpense.data.GroupEntity
 import app.nexpense.data.GroupState
 
@@ -64,13 +68,14 @@ fun ActorDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boo
 }
 
 @Composable
-fun GroupSwitcherDialog(groups: List<GroupEntity>, viewModel: MainViewModel, addGroup: () -> Unit, dismiss: () -> Unit) {
+fun GroupSwitcherDialog(groups: List<GroupEntity>, viewModel: MainViewModel, addGroup: () -> Unit,
+    switchingOnly: Boolean = false, dismiss: () -> Unit) {
     var removing by remember { mutableStateOf<GroupEntity?>(null) }
     AlertDialog(onDismissRequest = dismiss, title = { Text("Your groups") },
         text = { Column(Modifier.heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            groups.forEach { group -> GroupRow(group, viewModel, dismiss) { removing = group } }
-            Button(onClick = { dismiss(); addGroup() }, Modifier.align(Alignment.CenterHorizontally)) {
+            groups.forEach { group -> GroupRow(group, viewModel, !switchingOnly, dismiss) { removing = group } }
+            Button(onClick = { dismiss(); addGroup() }, Modifier.align(Alignment.CenterHorizontally), enabled = !switchingOnly) {
                 Text("New group")
             }
         } }, confirmButton = {}, dismissButton = { TextButton(onClick = dismiss) { Text("Close") } })
@@ -88,37 +93,37 @@ fun GroupSwitcherDialog(groups: List<GroupEntity>, viewModel: MainViewModel, add
 }
 
 @Composable
-private fun GroupRow(group: GroupEntity, viewModel: MainViewModel, dismiss: () -> Unit, onRemove: () -> Unit) {
+private fun GroupRow(group: GroupEntity, viewModel: MainViewModel, removeEnabled: Boolean, dismiss: () -> Unit, onRemove: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = {
             viewModel.selectGroup(group.publicKey)
             dismiss()
         }, Modifier.weight(1f)) {
-            Text("${group.localName} · ${group.keySource.displayName()}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(group.localName, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        IconButton(onClick = onRemove) {
+        IconButton(onClick = onRemove, enabled = removeEnabled) {
             Icon(Icons.Default.Delete, "Remove ${group.localName}")
         }
     }
 }
 
-private fun String.displayName() = when (this) {
-    "DEVICE" -> "KEY ON DEVICE"
-    "AMBER" -> "AMBER"
-    else -> this
-}
-
 @Composable
 fun SettingsDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boolean, dismiss: () -> Unit) {
     var name by remember(state.displayName) { mutableStateOf(state.displayName) }
+    val npub = remember(state.group.publicKey) { Npub.encode(state.group.publicKey) }
+    val clipboard = LocalClipboardManager.current
     AlertDialog(onDismissRequest = dismiss, title = { Text("Group settings") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text("Group name") }, singleLine = true,
                 enabled = actionsEnabled)
-            Text("Key source: ${state.group.keySource.displayName()}")
-            Text("Group public key\n${state.group.publicKey}")
-            Text("EUR only · NIP-44 encrypted")
+            Text("Group public key (npub)")
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(npub, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = { clipboard.setText(AnnotatedString(npub)) }) {
+                    Icon(Icons.Default.ContentCopy, "Copy npub")
+                }
+            }
         } },
         confirmButton = { Button(onClick = { if (name.isNotBlank()) { viewModel.renameGroup(name); dismiss() } },
             enabled = actionsEnabled && name.isNotBlank()) { Text("Save") } },

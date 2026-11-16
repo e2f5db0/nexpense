@@ -4,17 +4,25 @@
 package app.nexpense.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
+import app.nexpense.R
 import app.nexpense.data.GroupEntity
 import app.nexpense.data.GroupState
 import app.nexpense.ledger.minorToEuro
@@ -30,7 +39,8 @@ import app.nexpense.nostr.Person
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<GroupEntity>, busy: Boolean, onAddGroup: () -> Unit) {
+fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<GroupEntity>, busy: Boolean,
+    onAppearance: () -> Unit, onAddGroup: () -> Unit) {
     var actors by remember { mutableStateOf(false) }
     var groupSwitcher by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
@@ -39,31 +49,54 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
     var activity by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<Person?>(null) }
     val actor = state.actingPerson
-    val actionsEnabled = !busy
+    val waitingForPeople = actor == null && state.people.isEmpty()
+    val actorSyncGate = actor == null && state.syncing
+    val actionsEnabled = !busy && actor != null
+    val accent = MaterialTheme.colorScheme.primary
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text(state.displayName, Modifier.clickable { groupSwitcher = true }, fontWeight = FontWeight.Bold) },
-            actions = {
-                IconButton(onClick = viewModel::sync, enabled = actionsEnabled) { Icon(Icons.Default.Refresh, "Synchronize") }
-                IconButton(onClick = { settings = true }) { Icon(Icons.Default.Settings, "Group settings") }
-            })
+        CenterAlignedTopAppBar(title = {
+            Row(Modifier.clickable { groupSwitcher = true }, verticalAlignment = Alignment.CenterVertically) {
+                Image(painterResource(R.drawable.logo_icon), "Nexpense logo",
+                    Modifier.size(32.dp).clip(CircleShape), contentScale = ContentScale.Crop)
+                Spacer(Modifier.width(8.dp))
+                Text(state.displayName, Modifier.weight(1f, fill = false), fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Icon(Icons.Default.ArrowDropDown, "Switch group")
+            }
+        }, actions = {
+            IconButton(onClick = viewModel::sync, enabled = !busy && !state.syncing) {
+                Icon(Icons.Default.Refresh, "Synchronize")
+            }
+            IconButton(onClick = { settings = true }, enabled = !actorSyncGate) {
+                Icon(Icons.Default.Settings, "Group settings")
+            }
+            IconButton(onClick = onAppearance, enabled = !actorSyncGate) {
+                Icon(Icons.Default.Palette, "Appearance")
+            }
+        })
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            TextButton(onClick = { actors = true }, Modifier.fillMaxWidth()) {
+            TextButton(onClick = { actors = true }, Modifier.fillMaxWidth(), enabled = !waitingForPeople) {
                 if (actor == null) {
-                    Text("Select who you are", Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                    Text("Select who you are", Modifier.weight(1f), textAlign = TextAlign.Center,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 } else {
                     Text(buildAnnotatedString {
                         append("Acting as ")
-                        withStyle(SpanStyle(color = NostrPurple, fontWeight = FontWeight.Bold)) {
+                        withStyle(SpanStyle(color = accent, fontWeight = FontWeight.Bold)) {
                             append(actor.name)
                         }
-                    }, Modifier.fillMaxWidth(), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }, Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+                Icon(Icons.Default.ArrowDropDown, "Choose group member")
             }
             when {
-                state.syncing -> Text("Syncing…", style = MaterialTheme.typography.bodySmall)
+                state.syncing -> Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    NostrichLoading(size = 24.dp)
+                    Text("Syncing…", style = MaterialTheme.typography.bodySmall)
+                }
                 state.pendingCount > 0 -> Text("${state.pendingCount} ${if (state.pendingCount == 1) "change" else "changes"} waiting to sync",
                     style = MaterialTheme.typography.bodySmall)
                 state.group.syncStatus == "Offline" -> Text("Offline · changes will sync later",
@@ -72,9 +105,19 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                     color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             if (actor == null) {
-                Text("Who are you acting as?", style = MaterialTheme.typography.headlineSmall)
-                state.people.forEach { person -> Button(onClick = { viewModel.selectActor(person.personId) }, Modifier.fillMaxWidth()) { Text(person.name) } }
-                Button(onClick = { actors = true }, enabled = actionsEnabled) { Text("Add a friend") }
+                if (waitingForPeople) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        NostrichLoading(size = 64.dp)
+                        Text(if (state.syncing) "Loading group members…" else "No group members loaded yet. Sync or switch groups.",
+                            textAlign = TextAlign.Center)
+                    }
+                } else {
+                    Text("Who are you acting as?", Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                    state.people.forEach { person -> Button(onClick = { viewModel.selectActor(person.personId) }, Modifier.fillMaxWidth()) { Text(person.name) } }
+                }
             } else {
                 val totals = state.ledger.totals(actor.personId)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -110,8 +153,8 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
         }
     }
     if (actors) ActorDialog(state, viewModel, actionsEnabled) { actors = false }
-    if (groupSwitcher) GroupSwitcherDialog(groups, viewModel, onAddGroup) { groupSwitcher = false }
-    if (settings) SettingsDialog(state, viewModel, actionsEnabled) { settings = false }
+    if (groupSwitcher) GroupSwitcherDialog(groups, viewModel, onAddGroup, actorSyncGate) { groupSwitcher = false }
+    if (settings) SettingsDialog(state, viewModel, !busy && !actorSyncGate) { settings = false }
     if (pay) PayDialog(state, viewModel, actionsEnabled) { pay = false }
     if (request) RequestDialog(state, viewModel, actionsEnabled) { request = false }
     if (activity) ActivityDialog(state, viewModel, actionsEnabled) { activity = false }

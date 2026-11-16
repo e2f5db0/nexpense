@@ -22,7 +22,7 @@ import app.nexpense.ledger.minorToEuro
 
 @Composable
 fun AmountCard(label: String, amount: Long, modifier: Modifier, color: Color) {
-    Card(modifier, border = BorderStroke(1.dp, NostrPurple),
+    Card(modifier, border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
         colors = CardDefaults.cardColors(containerColor = Surface)) {
         Column(Modifier.padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {

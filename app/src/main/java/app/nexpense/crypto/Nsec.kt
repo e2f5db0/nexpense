@@ -28,9 +28,13 @@ object Nsec {
 
     fun encode(secret: ByteArray): String {
         Secp256k1.publicKey(secret)
-        val values = convertBits(secret.map { it.toInt() and 0xff }, 8, 5, true)
-        val checksum = createChecksum("nsec", values)
-        return "nsec1" + (values + checksum).joinToString("") { charset[it].toString() }
+        return encodeBech32("nsec", secret)
+    }
+
+    internal fun encodeBech32(hrp: String, data: ByteArray): String {
+        val values = convertBits(data.map { it.toInt() and 0xff }, 8, 5, true)
+        val checksum = createChecksum(hrp, values)
+        return hrp + "1" + (values + checksum).joinToString("") { charset[it].toString() }
     }
 
     private fun convertBits(data: List<Int>, from: Int, to: Int, pad: Boolean): List<Int> {
@@ -72,6 +76,16 @@ object Nsec {
     private fun createChecksum(hrp: String, values: List<Int>): List<Int> {
         val mod = polymod(hrpExpand(hrp) + values + List(6) { 0 }) xor 1
         return List(6) { (mod shr (5 * (5 - it))) and 31 }
+    }
+}
+
+object Npub {
+    fun encode(publicKeyHex: String): String {
+        require(publicKeyHex.length == 64 && publicKeyHex.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) {
+            "Expected a 32-byte hex public key"
+        }
+        val data = ByteArray(32) { index -> publicKeyHex.substring(index * 2, index * 2 + 2).toInt(16).toByte() }
+        return Nsec.encodeBech32("npub", data)
     }
 }
 

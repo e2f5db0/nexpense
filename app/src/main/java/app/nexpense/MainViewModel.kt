@@ -18,6 +18,8 @@ import app.nexpense.data.request
 import app.nexpense.data.requestCustom
 import app.nexpense.data.saveSettings
 import app.nexpense.nostr.Expense
+import app.nexpense.ui.AccentColor
+import app.nexpense.ui.AppFont
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,11 +30,16 @@ import kotlinx.coroutines.launch
 
 class MainViewModel(private val repository: GroupRepository, context: Context) : ViewModel() {
     private val preferences = context.getSharedPreferences("session", Context.MODE_PRIVATE)
+    private val appearancePreferences = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
     private val selectedKey = MutableStateFlow<String?>(preferences.getString("group", null))
     private val syncingKeys = mutableSetOf<String>()
     val busy = MutableStateFlow(false)
     val error = MutableStateFlow<String?>(null)
     val generatedBackup = MutableStateFlow<String?>(null)
+    val accent = MutableStateFlow(appearancePreferences.getString("accent", null)
+        ?.let { runCatching { AccentColor.valueOf(it) }.getOrNull() } ?: AccentColor.PURPLE)
+    val appFont = MutableStateFlow(appearancePreferences.getString("font", null)
+        ?.let { runCatching { AppFont.valueOf(it) }.getOrNull() } ?: AppFont.ARCADE)
     val groups = repository.observeGroups().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -78,6 +85,14 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     }
 
     fun selectActor(personId: String) = launchLocal { repository.selectActor(currentKey(), personId) }
+    fun setAccent(value: AccentColor) {
+        accent.value = value
+        appearancePreferences.edit().putString("accent", value.name).apply()
+    }
+    fun setAppFont(value: AppFont) {
+        appFont.value = value
+        appearancePreferences.edit().putString("font", value.name).apply()
+    }
     fun removeGroup(publicKey: String) = launchLocal {
         if (publicKey in syncingKeys) {
             error.value = "Wait for the current synchronization to finish"

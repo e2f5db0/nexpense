@@ -10,10 +10,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,12 +24,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import app.nexpense.signer.AmberConnector
+import app.nexpense.ui.AppearanceDialog
 import app.nexpense.ui.DashboardScreen
 import app.nexpense.ui.NexpenseTheme
+import app.nexpense.ui.NostrichLoading
 import app.nexpense.ui.OnboardingScreen
 
 class MainActivity : ComponentActivity() {
@@ -40,7 +44,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
-        setContent { NexpenseTheme { Surface(Modifier.fillMaxSize()) { NexpenseApp(viewModel) } } }
+        setContent {
+            val accent by viewModel.accent.collectAsState()
+            val appFont by viewModel.appFont.collectAsState()
+            NexpenseTheme(accent, appFont) { Surface(Modifier.fillMaxSize()) { NexpenseApp(viewModel) } }
+        }
     }
 }
 
@@ -51,7 +59,10 @@ fun NexpenseApp(viewModel: MainViewModel) {
     val busy by viewModel.busy.collectAsState()
     val error by viewModel.error.collectAsState()
     val backup by viewModel.generatedBackup.collectAsState()
+    val accent by viewModel.accent.collectAsState()
+    val appFont by viewModel.appFont.collectAsState()
     var addingGroup by rememberSaveable { mutableStateOf(false) }
+    var appearance by rememberSaveable { mutableStateOf(false) }
     val activeGroup = group
     val clipboard = LocalClipboardManager.current
     val amberLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -83,10 +94,13 @@ fun NexpenseApp(viewModel: MainViewModel) {
         )
     } else {
         DashboardScreen(viewModel = viewModel, state = activeGroup, groups = groups, busy = busy,
-            onAddGroup = { addingGroup = true })
+            onAppearance = { appearance = true }, onAddGroup = { addingGroup = true })
     }
 
-    if (busy && activeGroup != null) CircularProgressIndicator()
+    if (appearance) AppearanceDialog(accent, appFont, viewModel::setAccent, viewModel::setAppFont) { appearance = false }
+    if (busy && activeGroup != null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        NostrichLoading(size = 64.dp)
+    }
     error?.let {
         AlertDialog(onDismissRequest = viewModel::dismissError, title = { Text("Something went wrong") },
             text = { Text(it) }, confirmButton = { TextButton(onClick = viewModel::dismissError) { Text("OK") } })

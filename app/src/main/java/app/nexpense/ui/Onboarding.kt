@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,7 +18,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -33,8 +31,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -46,24 +47,31 @@ fun OnboardingScreen(
     onImport: (String, String) -> Unit,
     onAmber: () -> Unit,
 ) {
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable(showCancel) { mutableIntStateOf(if (showCancel) 0 else 1) }
     var groupName by rememberSaveable { mutableStateOf("") }
     var memberName by rememberSaveable { mutableStateOf("") }
     var additionalMembers by rememberSaveable { mutableStateOf(listOf<String>()) }
     var nsec by androidx.compose.runtime.remember { mutableStateOf("") }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        .padding(start = 24.dp, top = 48.dp, end = 24.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        if (showCancel) TextButton(onClick = onCancel) { Text("Cancel") }
-        Text("Nexpense", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = NostrPurple)
+        Text(buildAnnotatedString {
+            append("N")
+            withStyle(SpanStyle(color = LogoYellow)) { append("€") }
+            append("xpense")
+        }, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary)
         Text("Private shared expenses for trusted groups.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("The nsec is the group. Keep it secret: everyone who has it can read and edit every expense.",
             style = MaterialTheme.typography.bodyMedium)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (showCancel) TextButton(onClick = onCancel, Modifier.align(Alignment.CenterHorizontally)) { Text("Cancel") }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("New group", "Enter group key", "Amber").forEachIndexed { index, label ->
-                OutlinedButton(onClick = { tab = index }, enabled = !busy, colors = if (tab == index) ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant) else ButtonDefaults.outlinedButtonColors()) {
-                    Text(label)
+                OutlinedButton(onClick = { tab = index }, Modifier.fillMaxWidth(), enabled = !busy,
+                    colors = if (tab == index) ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant) else ButtonDefaults.outlinedButtonColors()) {
+                    Text((if (tab == index) "✓ " else "") + label)
                 }
             }
         }
@@ -107,6 +115,6 @@ fun OnboardingScreen(
                 Button(onClick = onAmber, Modifier.fillMaxWidth(), enabled = !busy) { Text("Connect Amber") }
             }
         }
-        if (busy) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
+        if (busy) NostrichLoading(Modifier.align(Alignment.CenterHorizontally), size = 48.dp)
     }
 }
