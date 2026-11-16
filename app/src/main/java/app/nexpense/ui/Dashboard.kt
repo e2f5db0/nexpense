@@ -81,7 +81,8 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
             }
         })
     }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).padding(start = 20.dp, top = 8.dp, end = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
             if (actor != null) {
                 Row(Modifier.fillMaxWidth().clickable { actors = true },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {

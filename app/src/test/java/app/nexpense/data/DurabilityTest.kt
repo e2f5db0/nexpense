@@ -13,6 +13,13 @@ class DurabilityTest {
         CachedEventEntity("group", id, "group", time, kind, tags, "ciphertext", "signature", "{}")
 
     @Test
+    fun newGroupsUseDefaultRelays() {
+        val group = GroupEntity("group", "Test", "DEVICE")
+        assertEquals(listOf("wss://relay.damus.io", "wss://nos.lol", "wss://nostr.mom", "wss://relay.snort.social"),
+            relayUrlList(group.relayUrls))
+    }
+
+    @Test
     fun repairKeepsLatestSettingsLiveLedgerAndTombstones() {
         val settings1 = event("settings1", 30078, 1, "[[\"d\",\"group\"]]")
         val settings2 = event("settings2", 30078, 2, "[[\"d\",\"group\"]]")

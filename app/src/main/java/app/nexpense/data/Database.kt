@@ -24,7 +24,7 @@ data class GroupEntity(
     val keySource: String,
     val signerPackage: String? = null,
     val actingMemberId: String? = null,
-    val relayUrls: String = "wss://relay.damus.io,wss://nos.lol,wss://relay.nostr.band",
+    val relayUrls: String = "wss://relay.damus.io,wss://nos.lol,wss://nostr.mom,wss://relay.snort.social",
     val lastSyncedAt: Long = 0,
     val syncCursor: Long = 0,
     val syncStatus: String = "Never synchronized",
