@@ -45,7 +45,6 @@ fun OnboardingScreen(
     onCancel: () -> Unit,
     onGenerate: (String, List<String>) -> Unit,
     onImport: (String, String) -> Unit,
-    onAmber: () -> Unit,
 ) {
     var tab by rememberSaveable(showCancel) { mutableIntStateOf(if (showCancel) 0 else 1) }
     var groupName by rememberSaveable { mutableStateOf("") }
@@ -67,7 +66,7 @@ fun OnboardingScreen(
             style = MaterialTheme.typography.bodyMedium)
         if (showCancel) TextButton(onClick = onCancel, Modifier.align(Alignment.CenterHorizontally)) { Text("Cancel") }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("New group", "Enter group key", "Amber").forEachIndexed { index, label ->
+            listOf("New group", "Enter group key").forEachIndexed { index, label ->
                 OutlinedButton(onClick = { tab = index }, Modifier.fillMaxWidth(), enabled = !busy,
                     colors = if (tab == index) ButtonDefaults.outlinedButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant) else ButtonDefaults.outlinedButtonColors()) {
@@ -103,16 +102,13 @@ fun OnboardingScreen(
                     style = MaterialTheme.typography.bodySmall)
             }
             1 -> {
-                OutlinedTextField(nsec, { nsec = it.trim() }, Modifier.fillMaxWidth(), label = { Text("nsec1…") },
+                OutlinedTextField(nsec, { nsec = it }, Modifier.fillMaxWidth(),
+                    label = { Text("nsec1… or 64-character hex key") },
                     visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !busy)
                 OutlinedTextField(groupName, { groupName = it }, Modifier.fillMaxWidth(),
                     label = { Text("Local group name (optional)") }, singleLine = true, enabled = !busy)
                 Button(onClick = { if (nsec.isNotBlank()) onImport(nsec, groupName) }, Modifier.fillMaxWidth(),
                     enabled = !busy) { Text("Open encrypted group") }
-            }
-            else -> {
-                Text("Select the group key already stored in Amber. Nexpense never receives its nsec; Amber signs and encrypts through NIP-55.")
-                Button(onClick = onAmber, Modifier.fillMaxWidth(), enabled = !busy) { Text("Connect Amber") }
             }
         }
         if (busy) NostrichLoading(Modifier.align(Alignment.CenterHorizontally), size = 48.dp)

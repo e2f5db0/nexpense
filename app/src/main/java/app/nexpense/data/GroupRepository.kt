@@ -6,7 +6,6 @@ package app.nexpense.data
 import android.content.Context
 import app.nexpense.crypto.Nsec
 import app.nexpense.crypto.Secp256k1
-import app.nexpense.crypto.hexToBytes
 import app.nexpense.crypto.toHex
 import app.nexpense.nostr.DeletionMetadata
 import app.nexpense.nostr.EventDraft
@@ -20,7 +19,6 @@ import app.nexpense.nostr.Person
 import app.nexpense.nostr.RelayClient
 import app.nexpense.nostr.Settlement
 import app.nexpense.nostr.protocolJson
-import app.nexpense.signer.AmberGroupSigner
 import app.nexpense.signer.DeviceGroupSigner
 import app.nexpense.signer.GroupSigner
 import kotlinx.coroutines.flow.Flow
@@ -49,16 +47,11 @@ class GroupRepository(
         return publicKey
     }
 
-    suspend fun addAmberGroup(publicKey: String, signerPackage: String, name: String): String {
-        require(publicKey.length == 64 && Secp256k1.isValidPublicKey(publicKey.hexToBytes()))
-        require(dao.group(publicKey) == null) { "This group is already on the device" }
-        dao.saveGroup(GroupEntity(publicKey, name.ifBlank { "Amber group ${publicKey.take(6)}" }, "AMBER", signerPackage))
-        return publicKey
-    }
-
     suspend fun selectActor(publicKey: String, personId: String) {
         dao.group(publicKey)?.let { dao.saveGroup(it.copy(actingMemberId = personId)) }
     }
+
+    suspend fun clearActingMembers() = dao.clearActingMembers()
 
     suspend fun groups(): List<GroupEntity> = dao.groups()
 
@@ -133,7 +126,6 @@ class GroupRepository(
         val group = dao.group(publicKey) ?: error("Unknown group")
         return when (group.keySource) {
             "DEVICE" -> DeviceGroupSigner(vault.load(publicKey))
-            "AMBER" -> AmberGroupSigner(context, publicKey, group.signerPackage ?: error("Amber package missing"))
             else -> error("Unknown key source")
         }
     }

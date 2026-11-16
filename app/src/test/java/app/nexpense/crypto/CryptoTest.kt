@@ -91,4 +91,22 @@ class CryptoTest {
         assertEquals(65_536, Nip44.calcPaddedLength(65_535))
         assertEquals(65_536, Nip44.calcPaddedLength(65_536))
     }
+
+    @Test
+    fun hexGroupKeyDecodesToSameSecret() {
+        val secret = Secp256k1.generateSecret()
+        val hex = secret.toHex()
+        assertArrayEquals(secret, Nsec.decode(hex))
+        assertArrayEquals(secret, Nsec.decode(hex.uppercase()))
+        assertArrayEquals(secret, Nsec.decode(" $hex "))
+        assertArrayEquals(Nsec.decode(Nsec.encode(secret)), Nsec.decode(hex))
+    }
+
+    @Test
+    fun hexGroupKeyRejectsInvalidInput() {
+        assertFalse(runCatching { Nsec.decode("zz") }.isSuccess)
+        assertFalse(runCatching { Nsec.decode("0".repeat(63)) }.isSuccess)
+        assertFalse(runCatching { Nsec.decode("0".repeat(66)) }.isSuccess)
+        assertFalse(runCatching { Nsec.decode("00".repeat(32)) }.isSuccess)
+    }
 }

@@ -3,12 +3,9 @@
 
 package app.nexpense
 
-import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import app.nexpense.signer.AmberConnector
 import app.nexpense.ui.AppearanceDialog
 import app.nexpense.ui.DashboardScreen
 import app.nexpense.ui.NexpenseTheme
@@ -65,16 +61,6 @@ fun NexpenseApp(viewModel: MainViewModel) {
     var appearance by rememberSaveable { mutableStateOf(false) }
     val activeGroup = group
     val clipboard = LocalClipboardManager.current
-    val amberLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK && result.data?.getBooleanExtra("rejected", false) != true) {
-            val publicKey = result.data?.getStringExtra("result")
-            val signerPackage = result.data?.getStringExtra("package")
-            if (publicKey != null && signerPackage != null) {
-                viewModel.addAmber(publicKey, signerPackage, "Amber ${publicKey.take(6)}")
-                addingGroup = false
-            }
-        }
-    }
 
     LaunchedEffect(groups, addingGroup) {
         val current = group
@@ -90,7 +76,6 @@ fun NexpenseApp(viewModel: MainViewModel) {
             onCancel = { addingGroup = false },
             onGenerate = { name, members -> viewModel.generateGroup(name, members); addingGroup = false },
             onImport = { nsec, name -> viewModel.importGroup(nsec, name); addingGroup = false },
-            onAmber = { amberLauncher.launch(AmberConnector.connectionIntent()) },
         )
     } else {
         DashboardScreen(viewModel = viewModel, state = activeGroup, groups = groups, busy = busy,

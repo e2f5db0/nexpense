@@ -24,12 +24,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
 import app.nexpense.R
@@ -57,7 +54,11 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
     val accent = MaterialTheme.colorScheme.primary
 
     Scaffold(topBar = {
-        CenterAlignedTopAppBar(title = {
+        CenterAlignedTopAppBar(navigationIcon = {
+            Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+                if (state.syncing) NostrichLoading(size = 22.dp)
+            }
+        }, title = {
             Row(Modifier.clickable { groupSwitcher = true }, verticalAlignment = Alignment.CenterVertically) {
                 Image(painterResource(R.drawable.logo_icon), "Nexpense logo",
                     Modifier.size(32.dp).clip(CircleShape), contentScale = ContentScale.Crop)
@@ -79,26 +80,17 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
         })
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            TextButton(onClick = { actors = true }, Modifier.fillMaxWidth(), enabled = !waitingForPeople) {
-                if (actor == null) {
-                    Text("Select who you are", Modifier.weight(1f), textAlign = TextAlign.Center,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                } else {
-                    Text(buildAnnotatedString {
-                        append("Acting as ")
-                        withStyle(SpanStyle(color = accent, fontWeight = FontWeight.Bold)) {
-                            append(actor.name)
-                        }
-                    }, Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (actor != null) {
+                Row(Modifier.fillMaxWidth().clickable { actors = true },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    NameAvatar(actor.name, 40.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Text(actor.name, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold, color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Icon(Icons.Default.ArrowDropDown, "Choose group member")
                 }
-                Icon(Icons.Default.ArrowDropDown, "Choose group member")
             }
             when {
-                state.syncing -> Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    NostrichLoading(size = 24.dp)
-                    Text("Syncing…", style = MaterialTheme.typography.bodySmall)
-                }
                 state.pendingCount > 0 -> Text("${state.pendingCount} ${if (state.pendingCount == 1) "change" else "changes"} waiting to sync",
                     style = MaterialTheme.typography.bodySmall)
                 state.group.syncStatus == "Offline" -> Text("Offline · changes will sync later",
@@ -126,7 +118,12 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                 } else {
                     Text("Who are you acting as?", Modifier.fillMaxWidth(),
                         style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-                    state.people.forEach { person -> Button(onClick = { viewModel.selectActor(person.personId) }, Modifier.fillMaxWidth()) { Text(person.name) } }
+                    state.people.forEach { person -> Button(onClick = { viewModel.selectActor(person.personId) }, Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NameAvatar(person.name, 24.dp)
+                            Text(person.name)
+                        }
+                    } }
                 }
             } else {
                 val totals = state.ledger.totals(actor.personId)
@@ -148,7 +145,9 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                         Card(Modifier.fillMaxWidth().clickable { detail = person },
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
-                            Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                NameAvatar(person.name, 28.dp)
                                 Column(Modifier.weight(1f)) {
                                     Text(person.name, fontWeight = FontWeight.SemiBold)
                                     Text(if (balance > 0) "You owe ${person.name}" else if (balance < 0) "${person.name} owes you" else "Settled",

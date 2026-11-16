@@ -48,7 +48,11 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
-        selectedKey.value?.let(::selectGroup)
+        viewModelScope.launch {
+            try { repository.clearActingMembers() }
+            catch (t: Throwable) { error.value = t.message ?: "Operation failed" }
+            selectedKey.value?.let(::selectGroup)
+        }
     }
 
     fun selectGroup(publicKey: String) {
@@ -78,10 +82,6 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
 
     fun importGroup(nsec: String, name: String) = launch {
         selectGroup(repository.addDeviceGroup(nsec, name))
-    }
-
-    fun addAmber(publicKey: String, signerPackage: String, name: String) = launch {
-        selectGroup(repository.addAmberGroup(publicKey, signerPackage, name))
     }
 
     fun selectActor(personId: String) = launchLocal { repository.selectActor(currentKey(), personId) }

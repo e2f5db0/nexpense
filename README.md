@@ -6,9 +6,9 @@ identifies and encrypts each independent group.
 
 ## Features
 
-- Generate a group key on Android, import an `nsec`, or connect an existing Amber key.
-- Amber NIP-55 signing and NIP-44 operations without exposing its private key.
-- Switch acting members without logging out; add all members at creation and name or remove groups.
+- Generate a group key on Android or import one as `nsec` or 64-character hex.
+- Confirm who you are acting as at every launch and switch members without logging out.
+- Add all members at creation and name or remove groups; deterministic avatars distinguish them at a glance.
 - Equal or custom requests from any subset, including an optional requester share.
 - Partial/full cash settlements and directed line-by-line outstanding debts per person.
 - NIP-01 signatures, NIP-44 v2 encryption, NIP-42 relay AUTH, and NIP-09 deletion.
@@ -85,6 +85,6 @@ archive for that tag.
 
 ## Validation limits
 
-JVM protocol tests and Android builds run without an emulator. Amber approval UI,
-background signer permissions, relay-specific policies, and Obtainium installation
-must also be tested on a physical Android device before a production release.
+JVM protocol tests and Android builds run without an emulator. Relay-specific
+policies and Obtainium installation must also be tested on a physical Android
+device before a production release.

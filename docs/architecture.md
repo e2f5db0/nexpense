@@ -7,13 +7,13 @@ Status: protocol version 1. Nexpense is a trusted-group ledger, not a payment sy
 A group is identified by the public key derived from a shared Nostr secret key. The
 shared key signs every event and is the only access-control boundary. Acting members
 are encrypted application-level UUIDs, not Nostr identities. Any holder of the key can
-act or delete as any member.
+act or delete as any member. The acting-member selection is local UI state that is
+cleared on every app launch, so each session starts from an explicit choice.
 
-A group key can be generated on device, imported as NIP-19 `nsec`, or held by Amber.
-Device keys are AES-GCM encrypted by a non-exportable Android Keystore key. Amber
-connections use NIP-55 and store only the group public key and signer package. NIP-55
-`current_user` is always the group public key. Private keys must never be logged or
-published. Generated keys use `SecureRandom`, not a general-purpose PRNG.
+A group key can be generated on device or imported as NIP-19 `nsec` or a raw
+64-character hex secret. Device keys are AES-GCM encrypted by a non-exportable Android
+Keystore key. Private keys must never be logged or published. Generated keys use
+`SecureRandom`, not a general-purpose PRNG.
 
 NIP-44 v2 encrypts JSON from the group key to its own public key. Names, amounts,
 descriptions, settings, and settlements are ciphertext. Event times, kinds, public key,
@@ -101,7 +101,9 @@ derived UI state; signed pairwise balances remain authoritative and net both dir
 
 Nexpense uses Nostr-native eventual consistency. Temporary differences are unavoidable
 with offline phones or incomplete relays. Given the same valid events and tombstones,
-all devices converge to identical balances. The UI exposes offline, syncing, and user-friendly pending-change states. Writes update Room immediately
+all devices converge to identical balances. The UI exposes offline, syncing, and
+pending-change states; the syncing animation sits in a fixed navbar slot, so nothing
+shifts when it appears or disappears. Writes update Room immediately
 and schedule a network-constrained outbox worker; publishing does not require a foreground catch-up fetch.
 
 Room stores signed ciphertext events, decrypted entries, tombstones, relay cursors,
@@ -109,9 +111,10 @@ and an outbox. Live subscriptions and overlapping catch-up requests filter by au
 kinds, and `t=nexpense-v1`, deduplicating IDs. No shared balance snapshot is authoritative.
 
 Native Kotlin, Compose Material 3, Room, DataStore, WorkManager, OkHttp, Kotlin
-serialization, and Bouncy Castle. The persistent header shows group and acting member.
-Request supports equal splits and everyone-including-requester. Pay supports partial
-and full settlement. Every write confirmation repeats the acting member.
+serialization, and Bouncy Castle. The persistent header shows the group and a large
+centered acting-member name with a deterministic avatar. Request supports equal splits
+and everyone-including-requester. Pay supports partial and full settlement. Every
+write confirmation repeats the acting member.
 
 GitHub Releases contain a signed, versioned `nexpense-release.apk` for Obtainium.
 Upgrades require the same signing certificate and an increasing `versionCode`.

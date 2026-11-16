@@ -46,7 +46,10 @@ fun ActorDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boo
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             state.people.forEach { person ->
                 TextButton(onClick = { viewModel.selectActor(person.personId); dismiss() }, Modifier.fillMaxWidth()) {
-                    Text(if (person.personId == state.group.actingMemberId) "✓ ${person.name}" else person.name)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        NameAvatar(person.name, 24.dp)
+                        Text(if (person.personId == state.group.actingMemberId) "✓ ${person.name}" else person.name)
+                    }
                 }
             }
             if (!adding) {

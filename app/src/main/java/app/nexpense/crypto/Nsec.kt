@@ -12,6 +12,18 @@ object Nsec {
     fun generate(random: SecureRandom = SecureRandom()): String = encode(Secp256k1.generateSecret(random))
 
     fun decode(value: String): ByteArray {
+        val trimmed = value.trim()
+        return if (trimmed.startsWith("nsec1")) decodeBech32(trimmed) else decodeHex(trimmed)
+    }
+
+    private fun decodeHex(value: String): ByteArray {
+        val decoded = value.hexToBytes()
+        require(decoded.size == 32) { "Expected a 64-character hex group key" }
+        Secp256k1.publicKey(decoded) // validates scalar range
+        return decoded
+    }
+
+    private fun decodeBech32(value: String): ByteArray {
         require(value == value.lowercase() && value.startsWith("nsec1")) { "Expected a lowercase nsec" }
         require(value.length in 8..1023 && value.all { it.code in 33..126 })
         val separator = value.lastIndexOf('1')

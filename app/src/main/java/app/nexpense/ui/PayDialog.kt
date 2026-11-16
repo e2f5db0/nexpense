@@ -5,6 +5,7 @@ package app.nexpense.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,8 +60,11 @@ fun PayDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boole
                 creditors.forEach { person ->
                     OutlinedButton(onClick = { selectedId = person.personId; amount = "" }, Modifier.fillMaxWidth(),
                         enabled = actionsEnabled) {
-                        Text("${if (selectedId == person.personId) "✓ " else ""}${person.name} · ${minorToEuro(state.ledger.balance(actor.personId, person.personId))}",
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NameAvatar(person.name, 24.dp)
+                            Text("${if (selectedId == person.personId) "✓ " else ""}${person.name} · ${minorToEuro(state.ledger.balance(actor.personId, person.personId))}",
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
                 if (selected != null) {

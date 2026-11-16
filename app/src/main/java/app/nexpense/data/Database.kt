@@ -61,6 +61,9 @@ interface NexpenseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveGroup(group: GroupEntity)
 
+    @Query("UPDATE groups SET actingMemberId = NULL")
+    suspend fun clearActingMembers()
+
     @Query("DELETE FROM groups WHERE publicKey = :publicKey")
     suspend fun deleteGroup(publicKey: String)
 
