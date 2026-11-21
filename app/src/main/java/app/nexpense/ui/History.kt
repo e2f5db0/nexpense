@@ -76,7 +76,7 @@ fun PersonDetailDialog(state: GroupState, person: Person, viewModel: MainViewMod
     val actor = state.actingPerson ?: return
     var deleting by remember { mutableStateOf<LedgerEvent?>(null) }
     val lines = state.ledger.linesBetween(actor.personId, person.personId)
-    AlertDialog(onDismissRequest = dismiss, title = { Text("${actor.name} ↔ ${person.name}") },
+    AlertDialog(onDismissRequest = dismiss, title = { Text("${memberLabel(actor)} ↔ ${memberLabel(person)}") },
         text = { LazyColumn(Modifier.heightIn(max = 560.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (lines.isEmpty()) item { Text("No outstanding debt lines.") }
             items(lines, key = { it.eventId }) { line ->
@@ -116,4 +116,4 @@ private fun DeleteConfirmation(target: LedgerEvent?, viewModel: MainViewModel, a
     }
 }
 
-private fun GroupState.name(id: String) = people.firstOrNull { it.personId == id }?.name ?: "Unknown member"
+private fun GroupState.name(id: String) = people.firstOrNull { it.personId == id }?.let(::memberLabel) ?: "Unknown member [${id.take(4)}]"

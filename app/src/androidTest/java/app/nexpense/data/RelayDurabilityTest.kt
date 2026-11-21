@@ -136,6 +136,33 @@ class RelayDurabilityTest {
             .people.first { it.personId == bob }.name)
     }
 
+    @Test fun renameChecksLatestRosterAndSerializesConcurrentAdditions() = runBlocking {
+        dao.saveGroup(GroupEntity(publicKey, "Test", "DEVICE", relayUrls = urls.joinToString(",")))
+        val alice = repository.addPerson(publicKey, "Alice")
+        val bob = repository.addPerson(publicKey, "Bob")
+        val eventsBefore = dao.events(publicKey).size
+        assertTrue(runCatching { repository.renamePerson(publicKey, bob, " ALICE ") }.isFailure)
+        assertEquals(eventsBefore, dao.events(publicKey).size)
+
+        time += 1000
+        repository.renamePerson(publicKey, alice, "Carol")
+        time += 1000
+        repository.renamePerson(publicKey, bob, "alice")
+        val beforeConcurrent = dao.events(publicKey).size
+        time += 900
+        val rename = async { repository.renamePerson(publicKey, bob, "Dave") }
+        delay(20)
+        val add = async { repository.addPerson(publicKey, "Dave") }
+        delay(20)
+        assertEquals(beforeConcurrent, dao.events(publicKey).size)
+        time += 100
+        rename.await()
+        add.await()
+        val names = GroupProjector.project(dao.group(publicKey)!!, dao.events(publicKey)).people.map { it.name }
+        assertEquals(2, names.count { it == "Dave" })
+        assertTrue(runCatching { repository.renamePerson(publicKey, alice, "dave") }.isFailure)
+    }
+
     private class FakeRelay : RelayTransport {
         val unreachable = mutableSetOf<String>()
         val events = mutableMapOf<String, MutableMap<String, NostrEvent>>()

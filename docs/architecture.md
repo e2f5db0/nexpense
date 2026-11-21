@@ -50,6 +50,10 @@ The latest valid addressable event wins, with event ID as a deterministic tie-br
 One addressable event per member prevents concurrent roster additions overwriting each
 other. Renaming publishes a replacement with the same `d` tag and member UUID, so
 existing debts and history remain attached to that member.
+Renames reject names used by another member in the current local roster, ignoring case and
+surrounding whitespace. This check cannot enforce global uniqueness across offline devices;
+concurrent changes may still produce duplicate names after synchronization. The UI shows the
+first four UUID characters to help identify members, but those prefixes are not guaranteed unique.
 
 ### Expense
 

@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import app.nexpense.MainViewModel
 import app.nexpense.data.GroupState
 import app.nexpense.ledger.euroToMinor
-import app.nexpense.ledger.minorToEuro
+import app.nexpense.ledger.equalShares
 import app.nexpense.nostr.Expense
 import app.nexpense.nostr.Share
 import java.util.UUID
@@ -50,23 +50,26 @@ fun RequestDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: B
     var confirm by remember { mutableStateOf(false) }
     val shares = selected.sorted().map { Share(it, euroToMinor(customAmounts[it] ?: "")) }
     val totalMinor = if (custom) shares.sumOf { it.amountMinor } else euroToMinor(total)
-    val valid = description.isNotBlank() && selected.isNotEmpty() && totalMinor > 0 && (!custom || shares.all { it.amountMinor > 0 })
+    val previewShares = if (custom) shares else runCatching { equalShares(totalMinor, selected) }.getOrDefault(emptyList())
+    val valid = description.isNotBlank() && selected.isNotEmpty() && totalMinor > 0 &&
+        previewShares.size == selected.size && previewShares.all { it.amountMinor > 0 } &&
+        selected.all { id -> state.people.any { it.personId == id } }
 
     if (confirm) {
         AlertDialog(onDismissRequest = { confirm = false },
             title = { Text("Create debt request?", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
-            text = { Text("Acting as ${actor.name}\n\n${minorToEuro(totalMinor)} · ${description.trim()}\n\nShared with ${selected.size} participant(s), ${if (actor.personId in selected) "including" else "excluding"} you.",
-                Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+            text = { Text(requestSummary(actor, state.people, description, previewShares),
+                Modifier.fillMaxWidth().heightIn(max = 480.dp).verticalScroll(rememberScrollState()), textAlign = TextAlign.Center) },
             confirmButton = { Button(onClick = {
                 if (custom) viewModel.requestCustom(Expense(entryId = UUID.randomUUID().toString(), payerId = actor.personId,
                     description = description.trim(), totalMinor = totalMinor, incurredAt = System.currentTimeMillis() / 1000, shares = shares))
                 else viewModel.request(description, totalMinor, selected)
                 dismiss()
-            }, enabled = actionsEnabled) { Text("Confirm request") } },
+            }, enabled = actionsEnabled && valid) { Text("Confirm request") } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Back") } })
     } else {
         AlertDialog(onDismissRequest = dismiss,
-            title = { Text("Request · acting as ${actor.name}", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+            title = { Text("Request · acting as ${memberLabel(actor)}", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
             text = { Column(Modifier.heightIn(max = 580.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth(),
@@ -92,11 +95,11 @@ fun RequestDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: B
                     ).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Checkbox(person.personId in selected, null, enabled = actionsEnabled)
-                        Text(person.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        MemberName(person, Modifier.weight(1f))
                     }
                     if (custom && person.personId in selected) OutlinedTextField(customAmounts[person.personId] ?: "",
                         { customAmounts = customAmounts + (person.personId to it) }, Modifier.fillMaxWidth(),
-                        label = { Text("${person.name}'s share EUR") },
+                        label = { Text("${memberLabel(person)}'s share EUR") },
                         singleLine = true, enabled = actionsEnabled)
                 }
                 if (actor.personId !in selected) Text("Only selected people share this expense.",

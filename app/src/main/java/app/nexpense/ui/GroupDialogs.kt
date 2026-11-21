@@ -49,6 +49,7 @@ import app.nexpense.data.GroupEntity
 import java.text.DateFormat
 import java.util.Date
 import app.nexpense.data.GroupState
+import app.nexpense.data.memberNameExists
 import app.nexpense.nostr.Person
 
 @Composable
@@ -59,7 +60,7 @@ fun ActorDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boo
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             state.people.forEach { person ->
                 TextButton(onClick = { viewModel.selectActor(person.personId); dismiss() }, Modifier.fillMaxWidth()) {
-                    Text(if (person.personId == state.group.actingMemberId) "✓ ${person.name}" else person.name)
+                    MemberName(person, prefix = if (person.personId == state.group.actingMemberId) "✓ " else "")
                 }
             }
             if (!adding) {
@@ -183,7 +184,7 @@ fun SettingsDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: 
                             Text("Rename a member without changing their debts or history.", style = MaterialTheme.typography.bodyMedium)
                             state.people.forEach { person ->
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(person.name, Modifier.weight(1f))
+                                    MemberName(person, Modifier.weight(1f))
                                     IconButton(onClick = { editingPerson = person }, enabled = actionsEnabled) {
                                         Icon(Icons.Default.Edit, "Rename ${person.name}")
                                     }
@@ -244,7 +245,7 @@ fun SettingsDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: 
         confirmButton = { TextButton(onClick = dismiss) { Text("Close") } })
     editingPerson?.let { person ->
         var memberName by remember(person.personId) { mutableStateOf(person.name) }
-        val duplicate = state.people.any { it.personId != person.personId && it.name.equals(memberName.trim(), ignoreCase = true) }
+        val duplicate = memberNameExists(state.people, memberName, person.personId)
         AlertDialog(onDismissRequest = { editingPerson = null }, title = { Text("Rename member") },
             text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(memberName, { memberName = it }, Modifier.fillMaxWidth(), label = { Text("Member name") },

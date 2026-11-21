@@ -6,7 +6,6 @@ package app.nexpense.data
 import app.nexpense.ledger.expenseForRequest
 import app.nexpense.nostr.GroupSettings
 import app.nexpense.nostr.Payloads
-import app.nexpense.nostr.Person
 import app.nexpense.nostr.Settlement
 import java.util.UUID
 
@@ -21,13 +20,6 @@ suspend fun GroupRepository.initialize(publicKey: String, groupName: String, mem
 suspend fun GroupRepository.saveSettings(publicKey: String, name: String) {
     require(name.isNotBlank())
     publish(publicKey, 30078, "nexpense:v1:group", GroupSettings(name = name.trim()))
-}
-
-suspend fun GroupRepository.addPerson(publicKey: String, name: String): String {
-    require(name.isNotBlank())
-    val person = Person(personId = UUID.randomUUID().toString(), name = name.trim())
-    publish(publicKey, 30078, "nexpense:v1:person:${person.personId}", person)
-    return person.personId
 }
 
 suspend fun GroupRepository.request(publicKey: String, payerId: String, description: String,

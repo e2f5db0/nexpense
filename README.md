@@ -8,7 +8,8 @@ identifies and encrypts each independent group.
 
 - Generate a group key on Android or import one as `nsec` or 64-character hex.
 - Confirm who you are acting as at every launch and switch members without logging out.
-- Add and rename members without changing their debts; name or remove groups.
+- Add and rename members without changing their debts; short UUID badges help identify members.
+- Name or remove groups.
 - Equal or custom requests from any subset, including an optional requester share.
 - Partial/full cash settlements and directed line-by-line outstanding debts per person.
 - NIP-01 signatures, NIP-44 v2 encryption, NIP-42 relay AUTH, and NIP-09 deletion.
@@ -25,6 +26,10 @@ long-term retention guarantee. Regularly export the encrypted event backup in gr
 and back up the nsec separately; both are required to recover without relays. Backup files
 expose event metadata, although payloads remain encrypted. Nostr deletion does not erase
 copies held by other relays or clients. There is no forward secrecy.
+
+Renames cannot reuse another current member's name on the local device (ignoring case and
+surrounding whitespace). Offline or concurrent changes on different devices can still create
+duplicate names. The four-character UUID badges help distinguish members but can also collide.
 
 ## Build
 

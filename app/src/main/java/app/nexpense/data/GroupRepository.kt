@@ -33,6 +33,7 @@ import kotlinx.serialization.encodeToString
 import java.util.concurrent.ConcurrentHashMap
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.UUID
 
 class GroupRepository(
     private val context: Context,
@@ -93,6 +94,13 @@ class GroupRepository(
         enqueueOutbox(context, publicKey)
     }
 
+    suspend fun addPerson(publicKey: String, name: String): String = lock(publicKey).withLock {
+        require(name.isNotBlank())
+        val person = Person(personId = UUID.randomUUID().toString(), name = name.trim())
+        publish(publicKey, 30078, "nexpense:v1:person:${person.personId}", person)
+        person.personId
+    }
+
     suspend fun renamePerson(publicKey: String, personId: String, name: String) = lock(publicKey).withLock {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Enter a member name" }
@@ -100,7 +108,7 @@ class GroupRepository(
         val events = dao.events(publicKey)
         val people = GroupProjector.project(group, events).people
         val person = people.firstOrNull { it.personId == personId } ?: error("Member not found")
-        require(people.none { it.personId != personId && it.name.equals(trimmed, ignoreCase = true) }) {
+        require(!memberNameExists(people, trimmed, personId)) {
             "Group member names must be different"
         }
         if (person.name == trimmed) return@withLock

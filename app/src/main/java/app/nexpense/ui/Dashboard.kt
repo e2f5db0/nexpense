@@ -86,8 +86,8 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
             if (actor != null) {
                 Row(Modifier.fillMaxWidth().clickable { actors = true },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                    Text(actor.name, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold, color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    MemberName(actor, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.displaySmall.copy(color = accent),
+                        fontWeight = FontWeight.Bold)
                     Icon(Icons.Default.ArrowDropDown, "Choose group member")
                 }
             }
@@ -124,7 +124,7 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                                 style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
                             state.people.forEach { person ->
                                 Button(onClick = { viewModel.selectActor(person.personId) }, Modifier.fillMaxWidth()) {
-                                    Text(person.name)
+                                    MemberName(person)
                                 }
                             }
                         }
@@ -153,7 +153,7 @@ fun DashboardScreen(viewModel: MainViewModel, state: GroupState, groups: List<Gr
                             Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(person.name, fontWeight = FontWeight.SemiBold)
+                                    MemberName(person, fontWeight = FontWeight.SemiBold)
                                     Text(if (balance > 0) "You owe ${person.name}" else if (balance < 0) "${person.name} owes you" else "Settled",
                                         color = balanceColor)
                                 }

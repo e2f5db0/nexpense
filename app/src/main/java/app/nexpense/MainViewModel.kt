@@ -13,7 +13,6 @@ import androidx.lifecycle.viewModelScope
 import app.nexpense.crypto.GeneratedGroupKey
 import app.nexpense.data.GroupRepository
 import app.nexpense.data.GroupState
-import app.nexpense.data.addPerson
 import app.nexpense.data.delete
 import app.nexpense.data.initialize
 import app.nexpense.data.pay

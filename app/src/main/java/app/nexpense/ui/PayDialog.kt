@@ -5,6 +5,7 @@ package app.nexpense.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -44,22 +45,25 @@ fun PayDialog(state: GroupState, viewModel: MainViewModel, actionsEnabled: Boole
     if (confirm && selected != null) {
         AlertDialog(onDismissRequest = { confirm = false },
             title = { Text("Record cash payment?", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
-            text = { Text("Acting as ${actor.name}\n\nRecord ${minorToEuro(amountMinor)} paid in cash to ${selected.name}. This only updates shared bookkeeping.",
+            text = { Text("Acting as ${memberLabel(actor)}\n\nRecord ${minorToEuro(amountMinor)} paid in cash to ${memberLabel(selected)}. This only updates shared bookkeeping.",
                 Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
             confirmButton = { Button(onClick = { viewModel.pay(selected.personId, amountMinor); dismiss() },
                 enabled = actionsEnabled) { Text("Confirm payment") } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Back") } })
     } else {
         AlertDialog(onDismissRequest = dismiss,
-            title = { Text("Pay · acting as ${actor.name}", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+            title = { Text("Pay · acting as ${memberLabel(actor)}", Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
             text = { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (creditors.isEmpty()) Text("You have no outstanding debts.")
                 creditors.forEach { person ->
                     OutlinedButton(onClick = { selectedId = person.personId; amount = "" }, Modifier.fillMaxWidth(),
                         enabled = actionsEnabled) {
-                        Text("${if (selectedId == person.personId) "✓ " else ""}${person.name} · ${minorToEuro(state.ledger.balance(actor.personId, person.personId))}",
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            MemberName(person, Modifier.weight(1f, fill = false), prefix = if (selectedId == person.personId) "✓ " else "")
+                            Text(minorToEuro(state.ledger.balance(actor.personId, person.personId)),
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
                 if (selected != null) {
