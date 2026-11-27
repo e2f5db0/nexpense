@@ -9,7 +9,7 @@ identifies and encrypts each independent group.
 - Generate a group key on Android or import one as `nsec` or 64-character hex.
 - Confirm who you are acting as at every launch and switch members without logging out.
 - Add and rename members without changing their debts; short UUID badges help identify members.
-- Name or remove groups.
+- Name or remove groups, and return to the last selected group on launch.
 - Equal or custom requests from any subset, including an optional requester share.
 - Partial/full cash settlements and directed line-by-line outstanding debts per person.
 - NIP-01 signatures, NIP-44 v2 encryption, NIP-42 relay AUTH, and NIP-09 deletion.

@@ -26,6 +26,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -34,8 +35,14 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     private val appContext = context.applicationContext
     private val preferences = context.getSharedPreferences("session", Context.MODE_PRIVATE)
     private val appearancePreferences = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
-    private val selectedKey = MutableStateFlow<String?>(preferences.getString("group", null))
     private val syncingKeys = mutableSetOf<String>()
+    private val selection = GroupSelection(preferences.getString("group", null), { key ->
+        preferences.edit().apply {
+            if (key == null) remove("group") else putString("group", key)
+        }.apply()
+    }, ::startSync)
+    val selectedKey = selection.key
+    val initialized = MutableStateFlow(false)
     val busy = MutableStateFlow(false)
     val error = MutableStateFlow<String?>(null)
     val generatedBackup = MutableStateFlow<String?>(null)
@@ -60,14 +67,18 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
         viewModelScope.launch {
             try { repository.clearActingMembers() }
             catch (t: Throwable) { error.value = t.message ?: "Operation failed" }
-            selectedKey.value?.let(::selectGroup)
+            try {
+                selection.initialize { repository.observeGroups().first() }
+            } catch (t: Throwable) {
+                error.value = t.message ?: "Operation failed"
+            } finally {
+                initialized.value = true
+            }
         }
     }
 
     fun selectGroup(publicKey: String) {
-        selectedKey.value = publicKey
-        preferences.edit().putString("group", publicKey).apply()
-        startSync(publicKey)
+        selection.select(publicKey)
     }
 
     fun sync() {
@@ -76,8 +87,7 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
     }
 
     fun clearGroupSelection() {
-        selectedKey.value = null
-        preferences.edit().remove("group").apply()
+        selection.clear()
     }
 
     fun generateGroup(name: String, members: List<String>) = launch {
@@ -109,7 +119,9 @@ class MainViewModel(private val repository: GroupRepository, context: Context) :
             repository.removeGroup(publicKey)
             if (selectedKey.value == publicKey) {
                 val next = repository.groups().firstOrNull { it.publicKey != publicKey }
-                if (next == null) clearGroupSelection() else selectGroup(next.publicKey)
+                if (selectedKey.value == publicKey) {
+                    if (next == null) clearGroupSelection() else selectGroup(next.publicKey)
+                }
             }
         }
     }

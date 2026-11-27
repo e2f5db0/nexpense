@@ -15,7 +15,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +51,8 @@ class MainActivity : ComponentActivity() {
 fun NexpenseApp(viewModel: MainViewModel) {
     val groups by viewModel.groups.collectAsState()
     val group by viewModel.group.collectAsState()
+    val selectedKey by viewModel.selectedKey.collectAsState()
+    val initialized by viewModel.initialized.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val error by viewModel.error.collectAsState()
     val notice by viewModel.notice.collectAsState()
@@ -60,17 +61,12 @@ fun NexpenseApp(viewModel: MainViewModel) {
     val appFont by viewModel.appFont.collectAsState()
     var addingGroup by rememberSaveable { mutableStateOf(false) }
     var appearance by rememberSaveable { mutableStateOf(false) }
-    val activeGroup = group
+    val activeGroup = group?.takeIf { it.group.publicKey == selectedKey }
     val clipboard = LocalClipboardManager.current
 
-    LaunchedEffect(groups, addingGroup) {
-        val current = group
-        if (current == null && groups.isNotEmpty() && !addingGroup) {
-            viewModel.selectGroup(groups.first().publicKey)
-        }
-    }
-
-    if (activeGroup == null || addingGroup) {
+    if (!initialized || (!addingGroup && selectedKey != null && activeGroup == null)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { NostrichLoading(size = 64.dp) }
+    } else if (activeGroup == null || addingGroup) {
         OnboardingScreen(
             busy = busy,
             showCancel = groups.isNotEmpty(),

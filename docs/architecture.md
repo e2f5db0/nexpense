@@ -7,8 +7,9 @@ Status: protocol version 1. Nexpense is a trusted-group ledger, not a payment sy
 A group is identified by the public key derived from a shared Nostr secret key. The
 shared key signs every event and is the only access-control boundary. Acting members
 are encrypted application-level UUIDs, not Nostr identities. Any holder of the key can
-act or delete as any member. The acting-member selection is local UI state that is
-cleared on every app launch, so each session starts from an explicit choice.
+act or delete as any member. The selected group is stored locally and restored on launch;
+the acting-member selection is cleared on every app launch, so each session starts from
+an explicit choice.
 
 A group key can be generated on device or imported as NIP-19 `nsec` or a raw
 64-character hex secret. Device keys are AES-GCM encrypted by a non-exportable Android
